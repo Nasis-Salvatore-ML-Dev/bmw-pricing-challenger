@@ -1,0 +1,14 @@
+BMW Pricing - CORRECTED Preprocessing (NO DATA LEAKAGE)
+================================================================================
+
+Processed: 2026-03-14 17:10:47
+Total samples: 4,843
+Total features: 41
+
+Split distribution:
+  Training:   2,905
+  Validation: 969
+  Test:       969
+
+CRITICAL: All features are observable at prediction time
+NO price-dependent features (no leakage)

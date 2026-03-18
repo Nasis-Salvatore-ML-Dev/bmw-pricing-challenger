@@ -1,0 +1,38 @@
+BMW PRICING - FEATURE ANALYSIS SUMMARY
+Generated: 2026-02-10 22:27:46
+================================================================================
+
+PRICE DISTRIBUTION
+--------------------------------------------------------------------------------
+Mean:   €15,828
+Median: €14,200
+Std:    €9,220
+Skew:   3.324
+
+STRONG PREDICTORS (|r| > 0.3)
+--------------------------------------------------------------------------------
+Count: 8
+
+price_log           : +0.806
+engine_power        : +0.639
+mileage_per_power   : -0.585
+is_luxury           : +0.468
+registration_year   : +0.450
+car_age_years       : -0.449
+age_mileage_interaction: -0.447
+mileage             : -0.414
+
+FINDINGS
+--------------------------------------------------------------------------------
+⚠️  Skewed price distribution
+✅ 8 strong predictors identified
+✅ No multicollinearity issues
+Fuel type, car type, paint color analyzed
+
+RECOMMENDATIONS
+--------------------------------------------------------------------------------
+Consider log-transform or robust models (Huber loss)
+R² ≥ 0.85 target is achievable
+Use one-hot encoding or target encoding for categorical features
+
+✅ READY FOR MODEL TRAINING

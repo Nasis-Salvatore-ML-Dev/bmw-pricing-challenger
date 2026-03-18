@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>BMW Pricing - Preprocessing Report</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; }
+        .header h1 { margin: 0; font-size: 2.5em; }
+        .section { background: white; padding: 25px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        .section h2 { color: #667eea; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { background: #667eea; color: white; padding: 12px; text-align: left; }
+        td { padding: 10px 12px; border-bottom: 1px solid #ddd; }
+        .metric { display: inline-block; background: #f8f9fa; padding: 15px 20px; margin: 10px 10px 10px 0; border-radius: 6px; border-left: 4px solid #667eea; }
+        .metric-label { font-size: 0.85em; color: #666; }
+        .metric-value { font-size: 1.8em; font-weight: bold; margin-top: 5px; }
+        .improved { color: #28a745; font-weight: bold; }
+        .warning { color: #ffc107; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 BMW Pricing Preprocessing Report</h1>
+        <p>Generated: 2026-03-02 15:28:01</p>
+    </div>
+    
+    <div class="section">
+        <h2>Summary</h2>
+        <div class="metric">
+            <div class="metric-label">Total Rows</div>
+            <div class="metric-value">4,843</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">New Features</div>
+            <div class="metric-value">9</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Price Skewness (Log)</div>
+            <div class="metric-value">-2.043</div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Data Split Distribution</h2>
+        <table>
+            <tr><th>Split</th><th>Count</th><th>Percentage</th></tr>
+<tr><td>Train</td><td>2,905</td><td>60.0%</td></tr><tr><td>Val</td><td>969</td><td>20.0%</td></tr><tr><td>Test</td><td>969</td><td>20.0%</td></tr>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h2>Price Distribution</h2>
+        <table>
+            <tr><th>Metric</th><th>Original Price</th><th>Log-Transformed Price</th></tr>
+
+            <tr><td>Mean</td><td>€15,828</td><td>9.51</td></tr>
+            <tr><td>Median</td><td>€14,200</td><td>9.56</td></tr>
+            <tr><td>Std Dev</td><td>€9,220</td><td>0.65</td></tr>
+            <tr><td>Skewness</td><td class='warning'>3.324</td><td class='improved'>-2.043</td></tr>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h2>New Features Created</h2>
+        <ul>
+            <li><strong>price_log:</strong> Log-transformed price for model training</li>
+            <li><strong>car_age_years:</strong> Age of vehicle in years</li>
+            <li><strong>annual_mileage:</strong> Average km driven per year (usage intensity)</li>
+            <li><strong>mileage_per_power:</strong> Mileage normalized by engine power</li>
+            <li><strong>is_high_usage:</strong> Binary flag for fleet/high-usage vehicles (>25K km/year)</li>
+            <li><strong>is_luxury:</strong> Binary flag for luxury vehicles (>€50K)</li>
+            <li><strong>age_mileage_interaction:</strong> Interaction term for compound depreciation</li>
+            <li><strong>data_split:</strong> Split marker (train/val/test) to prevent leakage</li>
+        </ul>
+    </div>
+</body>
+</html>

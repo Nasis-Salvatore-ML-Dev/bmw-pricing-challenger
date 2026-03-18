@@ -1,0 +1,92 @@
+
+    <html>
+    <head>
+        <title>BMW Pricing - Advanced Feature Engineering Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            h1 { color: #1f77b4; }
+            h2 { color: #ff7f0e; margin-top: 30px; }
+            table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .improvement { color: green; font-weight: bold; }
+            .issue { color: red; }
+        </style>
+    </head>
+    <body>
+        <h1>🚀 BMW Pricing - Advanced Feature Engineering Report</h1>
+        <p><strong>Generated:</strong> 2026-03-09 17:35:45</p>
+        <p><strong>Goal:</strong> Reduce tail rate from 67% to &lt;50% through better features</p>
+        
+        <h2>📊 Feature Summary</h2>
+        <table>
+            <tr><th>Category</th><th>Count</th><th>Features</th></tr>
+    
+            <tr>
+                <td><strong>Original Features</strong></td>
+                <td>10</td>
+                <td>maker_key, model_key, registration_date, fuel, paint_color, car_type, mileage, engine_power, car_age_years, sold_at</td>
+            </tr>
+        
+            <tr>
+                <td><strong>New Series Features</strong></td>
+                <td>1</td>
+                <td>bmw_series</td>
+            </tr>
+        
+            <tr>
+                <td><strong>New Temporal Features</strong></td>
+                <td>5</td>
+                <td>registration_year, registration_month, registration_quarter, is_summer_registration, is_year_end_registration</td>
+            </tr>
+        
+            <tr>
+                <td><strong>New Segment Features</strong></td>
+                <td>2</td>
+                <td>price_segment, price_segment_encoded</td>
+            </tr>
+        
+            <tr>
+                <td><strong>New Interaction Features</strong></td>
+                <td>5</td>
+                <td>mileage_segment_interaction, age_mileage_interaction, mileage_per_power, annual_mileage, power_age_ratio</td>
+            </tr>
+        
+            <tr>
+                <td><strong>New Depreciation Features</strong></td>
+                <td>2</td>
+                <td>depreciation_rate, price_per_km</td>
+            </tr>
+        
+            <tr>
+                <td><strong>New Encoding Features</strong></td>
+                <td>3</td>
+                <td>fuel_encoded, color_encoded, car_type_encoded</td>
+            </tr>
+        
+        </table>
+        
+        <h2>✨ Key Improvements</h2>
+        <ul>
+            <li class="improvement">✅ <strong>BMW Series Extraction:</strong> Reduced 63 unique models → 17 series (better generalization)</li>
+            <li class="improvement">✅ <strong>Target Encoding:</strong> Kept all fuel types (no grouping) using price-based encoding</li>
+            <li class="improvement">✅ <strong>Segment Features:</strong> Different pricing dynamics for economy vs luxury</li>
+            <li class="improvement">✅ <strong>Interaction Features:</strong> Capture non-linear relationships (mileage × segment)</li>
+            <li class="improvement">✅ <strong>Temporal Features:</strong> Seasonality effects on pricing</li>
+            <li class="improvement">✅ <strong>Depreciation Features:</strong> Segment-specific depreciation rates</li>
+        </ul>
+        
+        <h2>📈 Expected Impact</h2>
+        <table>
+            <tr><th>Metric</th><th>Before (Iteration 2)</th><th>Expected After</th></tr>
+            <tr><td>Tail Rate</td><td>67.6%</td><td class="improvement">45-52%</td></tr>
+            <tr><td>R²</td><td>0.765-0.794</td><td class="improvement">0.82-0.86</td></tr>
+            <tr><td>MAE</td><td>€1,980-2,031</td><td class="improvement">€1,700-1,850</td></tr>
+        </table>
+        
+        <h2>🎯 Total New Features Added: 18</h2>
+        <p>Original features: 10 → Final features: 39</p>
+        
+    </body>
+    </html>
+    

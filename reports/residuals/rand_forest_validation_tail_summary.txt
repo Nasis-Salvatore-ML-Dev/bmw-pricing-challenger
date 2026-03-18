@@ -1,0 +1,88 @@
+BMW PRICING MODEL - TAIL ANALYSIS REPORT
+================================================================================
+
+Total samples in tail (>5% error): 417
+Tail rate: 50.0%
+
+TOP 10 WORST PREDICTIONS:
+--------------------------------------------------------------------------------
+
+Prediction #353:
+  Actual:    €805
+  Predicted: €12,356
+  Error:     €11,551 (1434.9%)
+  Car Type:  suv
+  Mileage:   146,673 km
+  Age:       4.4 years
+
+Prediction #417:
+  Actual:    €805
+  Predicted: €8,824
+  Error:     €8,019 (996.2%)
+  Car Type:  estate
+  Mileage:   170,164 km
+  Age:       3.0 years
+
+Prediction #514:
+  Actual:    €805
+  Predicted: €6,986
+  Error:     €6,181 (767.8%)
+  Car Type:  suv
+  Mileage:   110,602 km
+  Age:       3.3 years
+
+Prediction #65:
+  Actual:    €1,301
+  Predicted: €9,493
+  Error:     €8,192 (629.7%)
+  Car Type:  estate
+  Mileage:   132,302 km
+  Age:       5.5 years
+
+Prediction #409:
+  Actual:    €805
+  Predicted: €5,046
+  Error:     €4,241 (526.8%)
+  Car Type:  estate
+  Mileage:   165,516 km
+  Age:       5.3 years
+
+Prediction #454:
+  Actual:    €3,601
+  Predicted: €13,240
+  Error:     €9,639 (267.7%)
+  Car Type:  estate
+  Mileage:   185,170 km
+  Age:       5.5 years
+
+Prediction #332:
+  Actual:    €1,101
+  Predicted: €3,072
+  Error:     €1,971 (179.0%)
+  Car Type:  sedan
+  Mileage:   188,492 km
+  Age:       14.3 years
+
+Prediction #369:
+  Actual:    €6,501
+  Predicted: €13,280
+  Error:     €6,779 (104.3%)
+  Car Type:  estate
+  Mileage:   237,376 km
+  Age:       7.7 years
+
+Prediction #477:
+  Actual:    €14,501
+  Predicted: €28,402
+  Error:     €13,901 (95.9%)
+  Car Type:  suv
+  Mileage:   78,827 km
+  Age:       3.0 years
+
+Prediction #242:
+  Actual:    €5,501
+  Predicted: €10,072
+  Error:     €4,571 (83.1%)
+  Car Type:  estate
+  Mileage:   246,501 km
+  Age:       8.0 years

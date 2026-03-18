@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-03-14T17:11:08.735909",
+  "model_name": "rand_forest",
+  "dataset": {
+    "training_samples": 2324,
+    "validation_samples": 581,
+    "test_samples": 969
+  },
+  "model_parameters": {
+    "n_estimators": 100,
+    "max_depth": 40,
+    "min_samples_split": 10,
+    "random_state": 42
+  },
+  "metrics": {
+    "mae": 1945.6795929795496,
+    "rmse": 2874.9630387491525,
+    "r2": 0.7755025263705162,
+    "mape": 20.484171910310597,
+    "tail_rate": 71.77280550774526,
+    "tc_ape": 27.537560756963188
+  },
+  "targets": {
+    "mae_target": 2500,
+    "rmse_target": 3000,
+    "r2_target": 0.85,
+    "mape_target": 4.5,
+    "tr_target": 15.0,
+    "tc_ape_target": 6.5
+  },
+  "targets_met": {
+    "mae_ok": true,
+    "rmse_ok": true,
+    "r2_ok": false,
+    "mape_ok": false,
+    "tr_ok": false,
+    "tc_ape_ok": false
+  }
+}

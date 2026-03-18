@@ -1,0 +1,12 @@
+# RTF files
+*.rtf
+
+# macOS system file
+.DS_Store
+
+# Documents
+local_docs/
+
+# Code Structure
+structure.sh
+

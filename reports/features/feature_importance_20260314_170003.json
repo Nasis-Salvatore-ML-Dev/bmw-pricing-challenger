@@ -1,0 +1,12 @@
+{
+  "power_age_ratio": 0.1637604324631886,
+  "car_age_years": 0.11361242668172628,
+  "registration_year": 0.07356251453268922,
+  "age_mileage_interaction": 0.07274013301871834,
+  "registration_date": 0.07240730734186313,
+  "mileage_per_power": 0.06164946806837588,
+  "model_key": 0.06107187222601768,
+  "bmw_series": 0.05471785966165305,
+  "engine_power": 0.04788383781326633,
+  "is_old_car": 0.04488980732150854
+}
