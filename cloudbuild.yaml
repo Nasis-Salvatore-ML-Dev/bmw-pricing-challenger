@@ -1,6 +1,7 @@
 steps:
-  # Step 1: Set up Python environment
-  - name: "python:3.10-slim"
+  # Step 1: Install dependencies
+  - id: "install"
+    name: "python:3.10-slim"
     entrypoint: "bash"
     args:
       - "-c"
@@ -10,7 +11,8 @@ steps:
         pip install -e .
 
   # Step 2: Run linting
-  - name: "python:3.10-slim"
+  - id: "lint"
+    name: "python:3.10-slim"
     entrypoint: "bash"
     args:
       - "-c"
@@ -18,48 +20,22 @@ steps:
         make lint
 
   # Step 3: Run tests
-  - name: "python:3.10-slim"
+  - id: "test"
+    name: "python:3.10-slim"
     entrypoint: "bash"
     args:
       - "-c"
       - |
         make test
 
-  # Step 4: Upload test results to bucket (optional)
-  - name: "gcr.io/cloud-builders/gsutil"
+  # Step 4: (Optional) Upload coverage report to Cloud Storage
+  - id: "upload"
+    name: "gcr.io/cloud-builders/gsutil"
     args:
       - "cp"
       - "htmlcov/index.html"
       - "gs://bmw-pricing-bucket/coverage/$(date -u +%Y%m%d-%H%M%S)/"
-    waitFor: ["Step 3"]
+    waitFor: ["test"]
 
 options:
   logging: CLOUD_LOGGING_ONLY
-
-# Build Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - 'gcr.io/portfolio-bmw-pricing-v1/bmw-pricing-api:$SHORT_SHA'
-      - '.'
-
-  # Push to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/portfolio-bmw-pricing-v1/bmw-pricing-api:$SHORT_SHA'
-
-  # Optionally tag as 'latest' (if on main branch)
-  - name: 'gcr.io/cloud-builders/docker'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        if [[ "$BRANCH_NAME" == "main" ]]; then
-          docker tag gcr.io/portfolio-bmw-pricing-v1/bmw-pricing-api:$SHORT_SHA gcr.io/portfolio-bmw-pricing-v1/bmw-pricing-api:latest
-          docker push gcr.io/portfolio-bmw-pricing-v1/bmw-pricing-api:latest
-        fi
-
-images:
-  - 'gcr.io/portfolio-bmw-pricing-v1/bmw-pricing-api:$SHORT_SHA'
