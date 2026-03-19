@@ -1,44 +1,27 @@
 steps:
-  # Step 1: Install dependencies (with build tools)
-  - id: "install"
+  - id: "build"
     name: "python:3.10-slim"
     entrypoint: "bash"
     args:
       - "-c"
       - |
-        apt-get update && apt-get install -y build-essential
+        set -e
+        apt-get update && apt-get install -y build-essential make
         pip install --upgrade pip
         pip install -r requirements-dev.txt
         pip install -e .
-
-  # Step 2: Run linting (install make)
-  - id: "lint"
-    name: "python:3.10-slim"
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        apt-get update && apt-get install -y make
+        echo "✅ Installed packages:"
+        pip list
         make lint
-
-  # Step 3: Run tests (install make)
-  - id: "test"
-    name: "python:3.10-slim"
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        apt-get update && apt-get install -y make
         make test
 
-  # Step 4: (Optional) Upload coverage report to Cloud Storage
   - id: "upload"
     name: "gcr.io/cloud-builders/gsutil"
     args:
       - "cp"
       - "htmlcov/index.html"
       - "gs://bmw-pricing-bucket/coverage/$(date -u +%Y%m%d-%H%M%S)/"
-    waitFor: ["test"]
+    waitFor: ["build"]
 
 options:
   logging: CLOUD_LOGGING_ONLY
