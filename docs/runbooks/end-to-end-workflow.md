@@ -451,7 +451,24 @@ Purpose:
 - catching syntax, format bugs
 - performing unit tests on specified testing files
 
-git add .
-git add .github/workflows/ci.yml
-git commit -m "Add GitHub Actions CI workflow"
-git push
+1. Triggering and running the tests on Python 3.10 and 3.11 through GitHub Actions workflow
+   git add . # to stage everything
+   git commit -m "Complete linting fixes and add GitHub Actions CI workflow"
+   git push
+
+## Google Cloud Build for Continuous Integration
+
+Purpose:
+
+- It provides an additional layer of verification by linting and testing in Google’s environment
+- Prepares the project for CD on GCR
+- It allows to store test reports or coverage in a Cloud Storage's bucket
+
+1. Create Trigger on Google Cloud Build in order to automatically execute cloudbuild.yaml (start a build) as an event
+   happens on github
+
+1.1. Connect to GitHub repository
+
+2. Test the trigger
+
+Test whether GCB reacts to a new push, or run the trigger manually
