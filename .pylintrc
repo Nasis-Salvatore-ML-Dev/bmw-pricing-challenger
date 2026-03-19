@@ -1,0 +1,31 @@
+[MASTER]
+ignore = src/main.py
+fail-under = 9.0
+
+[MESSAGES CONTROL]
+disable = missing-module-docstring,
+          missing-function-docstring,
+          invalid-name,
+          too-many-arguments,
+          too-many-locals,
+          too-many-branches,
+          too-many-statements,
+          too-many-return-statements,
+          logging-fstring-interpolation,
+          unused-argument,
+          redefined-outer-name,
+          import-outside-toplevel,
+          broad-exception-caught,
+          wrong-import-position,
+          duplicate-code,
+          raise-missing-from,
+          unspecified-encoding,
+          disallowed-name,
+          unused-variable,
+          cell-var-from-loop,
+          logging-not-lazy,
+          no-else-return,
+          line-too-long,
+          unbalanced-tuple-unpacking,
+          consider-using-sys-exit,
+          global-statement

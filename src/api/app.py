@@ -11,22 +11,22 @@ Endpoints:
 - GET /metrics - Model performance metrics
 """
 
+import logging
+import time
+import warnings
+from contextlib import asynccontextmanager
+from datetime import datetime
+from pathlib import Path
+
+import joblib
+import numpy as np
+import pandas as pd
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Any
-from contextlib import asynccontextmanager
-import joblib
-import pandas as pd
-import numpy as np
-import logging
-from pathlib import Path
-from datetime import datetime
-import time
-import warnings
 
 # Suppress sklearn version warnings
-warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -53,9 +53,9 @@ def load_model():
         package = joblib.load(model_path)
 
         if isinstance(package, dict):
-            MODEL = package['model']
-            ENCODERS = package.get('encoders', {})
-            TARGET_ENCODINGS = package.get('target_encodings', {})
+            MODEL = package["model"]
+            ENCODERS = package.get("encoders", {})
+            TARGET_ENCODINGS = package.get("target_encodings", {})
             logger.info(f"✅ Model loaded with {len(ENCODERS)} encoders and target encodings")
         else:
             MODEL = package
@@ -63,7 +63,7 @@ def load_model():
             TARGET_ENCODINGS = {}
             logger.warning("⚠️  Old model format - no encoders or target encodings found")
 
-        if hasattr(MODEL, 'feature_names_in_'):
+        if hasattr(MODEL, "feature_names_in_"):
             FEATURE_NAMES = MODEL.feature_names_in_.tolist()
         else:
             FEATURE_NAMES = None
@@ -90,7 +90,7 @@ app = FastAPI(
     title="BMW Pricing API",
     description="ML-powered BMW vehicle price prediction service",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS middleware
@@ -105,6 +105,7 @@ app.add_middleware(
 
 class CarFeatures(BaseModel):
     """Input schema for single car prediction"""
+
     model_key: str = Field(..., example="320d")
     mileage: float = Field(..., ge=0, example=120000, description="Mileage in kilometers")
     engine_power: float = Field(..., gt=0, example=184, description="Engine power in HP")
@@ -124,48 +125,60 @@ class CarFeatures(BaseModel):
     feature_7: bool = Field(default=False, description="Binary feature 7")
     feature_8: bool = Field(default=False, description="Binary feature 8")
 
-    @field_validator('registration_date', 'sold_at')
+    @field_validator("registration_date", "sold_at")
     @classmethod
     def validate_date(cls, v):
         try:
-            datetime.strptime(v, '%Y-%m-%d')
+            datetime.strptime(v, "%Y-%m-%d")
             return v
         except ValueError:
-            raise ValueError('Date must be in YYYY-MM-DD format')
+            raise ValueError("Date must be in YYYY-MM-DD format")
 
-    @field_validator('fuel')
+    @field_validator("fuel")
     @classmethod
     def validate_fuel(cls, v):
-        allowed = ['diesel', 'petrol', 'hybrid_petrol', 'electro']
+        allowed = ["diesel", "petrol", "hybrid_petrol", "electro"]
         if v.lower() not in allowed:
-            raise ValueError(f'Fuel must be one of: {allowed}')
+            raise ValueError(f"Fuel must be one of: {allowed}")
         return v.lower()
 
-    @field_validator('car_type')
+    @field_validator("car_type")
     @classmethod
     def validate_car_type(cls, v):
-        allowed = ['sedan', 'suv', 'coupe', 'convertible', 'estate', 'hatchback', 'van', 'subcompact']
+        allowed = [
+            "sedan",
+            "suv",
+            "coupe",
+            "convertible",
+            "estate",
+            "hatchback",
+            "van",
+            "subcompact",
+        ]
         if v.lower() not in allowed:
-            raise ValueError(f'Car type must be one of: {allowed}')
+            raise ValueError(f"Car type must be one of: {allowed}")
         return v.lower()
 
 
 class BatchPredictionRequest(BaseModel):
     """Input schema for batch predictions"""
-    cars: List[CarFeatures] = Field(..., max_items=100, description="Max 100 cars per batch")
+
+    cars: list[CarFeatures] = Field(..., max_items=100, description="Max 100 cars per batch")
 
 
 class PredictionResponse(BaseModel):
     """Output schema for single prediction"""
+
     predicted_price: float = Field(..., description="Predicted price in EUR")
-    confidence_interval: Dict[str, float] = Field(..., description="95% confidence interval")
+    confidence_interval: dict[str, float] = Field(..., description="95% confidence interval")
     model_version: str = Field(..., description="Model version used")
     processing_time_ms: float = Field(..., description="Processing time in milliseconds")
 
 
 class BatchPredictionResponse(BaseModel):
     """Output schema for batch predictions"""
-    predictions: List[PredictionResponse]
+
+    predictions: list[PredictionResponse]
     total_cars: int
     processing_time_ms: float
 
@@ -186,73 +199,73 @@ def preprocess_input(car: CarFeatures) -> pd.DataFrame:
     data = car.model_dump()
 
     # Calculate car age
-    reg_date = pd.to_datetime(data['registration_date'])
-    sold_date = pd.to_datetime(data['sold_at'])
-    data['car_age_years'] = (sold_date - reg_date).days / 365.25
+    reg_date = pd.to_datetime(data["registration_date"])
+    sold_date = pd.to_datetime(data["sold_at"])
+    data["car_age_years"] = (sold_date - reg_date).days / 365.25
 
     # Extract BMW series and luxury indicators
-    model_key_upper = data['model_key'].upper()
-    if 'X5' in model_key_upper:
-        bmw_series = 'X5'
+    model_key_upper = data["model_key"].upper()
+    if "X5" in model_key_upper:
+        bmw_series = "X5"
         luxury_tier = 3
         is_luxury = 1
-    elif 'X3' in model_key_upper:
-        bmw_series = 'X3'
+    elif "X3" in model_key_upper:
+        bmw_series = "X3"
         luxury_tier = 2
         is_luxury = 0
-    elif 'X1' in model_key_upper:
-        bmw_series = 'X1'
+    elif "X1" in model_key_upper:
+        bmw_series = "X1"
         luxury_tier = 1
         is_luxury = 0
-    elif '7' in model_key_upper:
-        bmw_series = '7_series'
+    elif "7" in model_key_upper:
+        bmw_series = "7_series"
         luxury_tier = 4
         is_luxury = 1
-    elif '5' in model_key_upper:
-        bmw_series = '5_series'
+    elif "5" in model_key_upper:
+        bmw_series = "5_series"
         luxury_tier = 3
         is_luxury = 1
-    elif '3' in model_key_upper:
-        bmw_series = '3_series'
+    elif "3" in model_key_upper:
+        bmw_series = "3_series"
         luxury_tier = 2
         is_luxury = 0
-    elif '1' in model_key_upper:
-        bmw_series = '1_series'
+    elif "1" in model_key_upper:
+        bmw_series = "1_series"
         luxury_tier = 1
         is_luxury = 0
     else:
-        bmw_series = 'other_series'
+        bmw_series = "other_series"
         luxury_tier = 2
         is_luxury = 0
 
-    data['bmw_series'] = bmw_series
-    data['luxury_tier'] = luxury_tier
-    data['is_luxury'] = is_luxury
-    data['is_performance'] = 1 if 'M' in model_key_upper else 0
+    data["bmw_series"] = bmw_series
+    data["luxury_tier"] = luxury_tier
+    data["is_luxury"] = is_luxury
+    data["is_performance"] = 1 if "M" in model_key_upper else 0
 
     # Temporal features
-    data['registration_year'] = reg_date.year
-    data['registration_month'] = reg_date.month
-    data['registration_quarter'] = reg_date.quarter
-    data['is_summer_registration'] = 1 if reg_date.month in [6, 7, 8] else 0
-    data['is_year_end_registration'] = 1 if reg_date.month in [11, 12] else 0
+    data["registration_year"] = reg_date.year
+    data["registration_month"] = reg_date.month
+    data["registration_quarter"] = reg_date.quarter
+    data["is_summer_registration"] = 1 if reg_date.month in [6, 7, 8] else 0
+    data["is_year_end_registration"] = 1 if reg_date.month in [11, 12] else 0
 
     # Interaction features
-    data['age_mileage_interaction'] = data['car_age_years'] * data['mileage'] / 10000
-    data['mileage_per_power'] = data['mileage'] / (data['engine_power'] + 1)
-    data['annual_mileage'] = data['mileage'] / (data['car_age_years'] + 1)
-    data['power_age_ratio'] = data['engine_power'] / (data['car_age_years'] + 1)
-    data['luxury_mileage_interaction'] = is_luxury * data['mileage'] / 10000
-    data['luxury_age_interaction'] = is_luxury * data['car_age_years']
-    data['is_high_mileage'] = 1 if (data['mileage'] / (data['car_age_years'] + 1)) > 25000 else 0
-    data['is_old_car'] = 1 if data['car_age_years'] > 8 else 0
+    data["age_mileage_interaction"] = data["car_age_years"] * data["mileage"] / 10000
+    data["mileage_per_power"] = data["mileage"] / (data["engine_power"] + 1)
+    data["annual_mileage"] = data["mileage"] / (data["car_age_years"] + 1)
+    data["power_age_ratio"] = data["engine_power"] / (data["car_age_years"] + 1)
+    data["luxury_mileage_interaction"] = is_luxury * data["mileage"] / 10000
+    data["luxury_age_interaction"] = is_luxury * data["car_age_years"]
+    data["is_high_mileage"] = 1 if (data["mileage"] / (data["car_age_years"] + 1)) > 25000 else 0
+    data["is_old_car"] = 1 if data["car_age_years"] > 8 else 0
 
     # Add maker_key (always BMW)
-    data['maker_key'] = 'BMW'
+    data["maker_key"] = "BMW"
 
     # Convert binary features to integers
     for i in range(1, 9):
-        feature_name = f'feature_{i}'
+        feature_name = f"feature_{i}"
         data[feature_name] = int(data.get(feature_name, False))
 
     # Create DataFrame
@@ -267,8 +280,10 @@ def preprocess_input(car: CarFeatures) -> pd.DataFrame:
             if col in df.columns:
                 try:
                     # Map each value to its integer label; unseen categories get -1
-                    df[col] = df[col].astype(str).apply(
-                        lambda x: encoder.transform([x])[0] if x in encoder.classes_ else -1
+                    df[col] = (
+                        df[col]
+                        .astype(str)
+                        .apply(lambda x: encoder.transform([x])[0] if x in encoder.classes_ else -1)
                     )
                 except Exception as e:
                     logger.warning(f"Encoding error for column {col}: {e}")
@@ -276,7 +291,7 @@ def preprocess_input(car: CarFeatures) -> pd.DataFrame:
     else:
         # Fallback if no encoders (should not happen)
         logger.warning("No encoders found; using default mapping.")
-        for col in ['maker_key', 'model_key', 'fuel', 'paint_color', 'car_type']:
+        for col in ["maker_key", "model_key", "fuel", "paint_color", "car_type"]:
             if col in df.columns:
                 df[col] = 0
 
@@ -286,50 +301,104 @@ def preprocess_input(car: CarFeatures) -> pd.DataFrame:
     # ------------------------------------------------------------------
     if TARGET_ENCODINGS:
         # Fuel
-        fuel_map = TARGET_ENCODINGS.get('fuel', {})
-        df['fuel_encoded'] = df['fuel'].map(fuel_map).fillna(np.mean(list(fuel_map.values())) if fuel_map else 0)
+        fuel_map = TARGET_ENCODINGS.get("fuel", {})
+        df["fuel_encoded"] = (
+            df["fuel"].map(fuel_map).fillna(np.mean(list(fuel_map.values())) if fuel_map else 0)
+        )
 
         # Color (paint_color)
-        color_map = TARGET_ENCODINGS.get('color', {})
-        df['color_encoded'] = df['paint_color'].map(color_map).fillna(np.mean(list(color_map.values())) if color_map else 0)
+        color_map = TARGET_ENCODINGS.get("color", {})
+        df["color_encoded"] = (
+            df["paint_color"]
+            .map(color_map)
+            .fillna(np.mean(list(color_map.values())) if color_map else 0)
+        )
 
         # Car type
-        car_type_map = TARGET_ENCODINGS.get('car_type', {})
-        df['car_type_encoded'] = df['car_type'].map(car_type_map).fillna(np.mean(list(car_type_map.values())) if car_type_map else 0)
+        car_type_map = TARGET_ENCODINGS.get("car_type", {})
+        df["car_type_encoded"] = (
+            df["car_type"]
+            .map(car_type_map)
+            .fillna(np.mean(list(car_type_map.values())) if car_type_map else 0)
+        )
     else:
         # Fallback (should not happen)
         logger.warning("Target encodings missing; using zeros.")
-        df['fuel_encoded'] = 0
-        df['color_encoded'] = 0
-        df['car_type_encoded'] = 0
+        df["fuel_encoded"] = 0
+        df["color_encoded"] = 0
+        df["car_type_encoded"] = 0
 
     # Ensure numeric columns are float
-    numeric_cols = ['mileage', 'engine_power', 'car_age_years', 'luxury_tier', 'is_luxury',
-                    'is_performance', 'registration_year', 'registration_month', 'registration_quarter',
-                    'is_summer_registration', 'is_year_end_registration', 'age_mileage_interaction',
-                    'mileage_per_power', 'annual_mileage', 'power_age_ratio', 'luxury_mileage_interaction',
-                    'luxury_age_interaction', 'is_high_mileage', 'is_old_car',
-                    'fuel_encoded', 'color_encoded', 'car_type_encoded'] + \
-                   [f'feature_{i}' for i in range(1, 9)]
+    numeric_cols = [
+        "mileage",
+        "engine_power",
+        "car_age_years",
+        "luxury_tier",
+        "is_luxury",
+        "is_performance",
+        "registration_year",
+        "registration_month",
+        "registration_quarter",
+        "is_summer_registration",
+        "is_year_end_registration",
+        "age_mileage_interaction",
+        "mileage_per_power",
+        "annual_mileage",
+        "power_age_ratio",
+        "luxury_mileage_interaction",
+        "luxury_age_interaction",
+        "is_high_mileage",
+        "is_old_car",
+        "fuel_encoded",
+        "color_encoded",
+        "car_type_encoded",
+    ] + [f"feature_{i}" for i in range(1, 9)]
 
     for col in numeric_cols:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(float)
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(float)
 
     # CRITICAL: Model expects features in specific order
     # Reorder columns to match model's feature_names_in_
     expected_order = [
-        'maker_key', 'model_key', 'mileage', 'engine_power', 'registration_date',
-        'fuel', 'paint_color', 'car_type',
-        'feature_1', 'feature_2', 'feature_3', 'feature_4',
-        'feature_5', 'feature_6', 'feature_7', 'feature_8',
-        'sold_at', 'bmw_series', 'luxury_tier', 'is_luxury', 'is_performance',
-        'registration_year', 'registration_month', 'registration_quarter',
-        'is_summer_registration', 'is_year_end_registration', 'car_age_years',
-        'age_mileage_interaction', 'mileage_per_power', 'annual_mileage',
-        'power_age_ratio', 'luxury_mileage_interaction', 'luxury_age_interaction',
-        'is_high_mileage', 'is_old_car',
-        'fuel_encoded', 'color_encoded', 'car_type_encoded'
+        "maker_key",
+        "model_key",
+        "mileage",
+        "engine_power",
+        "registration_date",
+        "fuel",
+        "paint_color",
+        "car_type",
+        "feature_1",
+        "feature_2",
+        "feature_3",
+        "feature_4",
+        "feature_5",
+        "feature_6",
+        "feature_7",
+        "feature_8",
+        "sold_at",
+        "bmw_series",
+        "luxury_tier",
+        "is_luxury",
+        "is_performance",
+        "registration_year",
+        "registration_month",
+        "registration_quarter",
+        "is_summer_registration",
+        "is_year_end_registration",
+        "car_age_years",
+        "age_mileage_interaction",
+        "mileage_per_power",
+        "annual_mileage",
+        "power_age_ratio",
+        "luxury_mileage_interaction",
+        "luxury_age_interaction",
+        "is_high_mileage",
+        "is_old_car",
+        "fuel_encoded",
+        "color_encoded",
+        "car_type_encoded",
     ]
 
     # Reorder DataFrame to match expected feature order
@@ -349,8 +418,8 @@ async def root():
             "predict": "/predict",
             "batch": "/predict/batch",
             "health": "/health",
-            "metrics": "/metrics"
-        }
+            "metrics": "/metrics",
+        },
     }
 
 
@@ -364,7 +433,7 @@ async def health_check():
         "status": "healthy",
         "model_loaded": True,
         "encoders_count": len(ENCODERS),
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -400,10 +469,10 @@ async def predict(car: CarFeatures, request: Request):
             predicted_price=float(predicted_price),
             confidence_interval={
                 "lower": float(max(0, predicted_price - confidence_margin)),
-                "upper": float(predicted_price + confidence_margin)
+                "upper": float(predicted_price + confidence_margin),
             },
             model_version="rand_forest_v1",
-            processing_time_ms=processing_time
+            processing_time_ms=processing_time,
         )
 
     except Exception as e:
@@ -432,24 +501,24 @@ async def predict_batch(request: BatchPredictionRequest):
             rmse_euro = 2875
             confidence_margin = 1.96 * rmse_euro
 
-            predictions.append(PredictionResponse(
-                predicted_price=float(predicted_price),
-                confidence_interval={
-                    "lower": float(max(0, predicted_price - confidence_margin)),
-                    "upper": float(predicted_price + confidence_margin)
-                },
-                model_version="rand_forest_v1",
-                processing_time_ms=0.0  # Individual timing not tracked in batch
-            ))
+            predictions.append(
+                PredictionResponse(
+                    predicted_price=float(predicted_price),
+                    confidence_interval={
+                        "lower": float(max(0, predicted_price - confidence_margin)),
+                        "upper": float(predicted_price + confidence_margin),
+                    },
+                    model_version="rand_forest_v1",
+                    processing_time_ms=0.0,  # Individual timing not tracked in batch
+                )
+            )
 
         processing_time = (time.time() - start_time) * 1000
 
         logger.info(f"Batch prediction: {len(predictions)} cars | {processing_time:.1f}ms")
 
         return BatchPredictionResponse(
-            predictions=predictions,
-            total_cars=len(predictions),
-            processing_time_ms=processing_time
+            predictions=predictions, total_cars=len(predictions), processing_time_ms=processing_time
         )
 
     except Exception as e:
@@ -475,13 +544,14 @@ async def get_metrics():
         latest_metrics = metrics_files[-1]
 
         import json
-        with open(latest_metrics, 'r') as f:
+
+        with open(latest_metrics) as f:
             metrics_data = json.load(f)
 
         return {
-            "model_metrics": metrics_data.get('metrics', {}),
-            "targets_met": metrics_data.get('targets_met', {}),
-            "last_updated": metrics_data.get('timestamp', 'unknown')
+            "model_metrics": metrics_data.get("metrics", {}),
+            "targets_met": metrics_data.get("targets_met", {}),
+            "last_updated": metrics_data.get("timestamp", "unknown"),
         }
 
     except Exception as e:
@@ -491,4 +561,5 @@ async def get_metrics():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

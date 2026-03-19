@@ -5,32 +5,32 @@ Purpose: Train Random Forest model for BMW pricing prediction
 Follows Carmack's principles: incremental progress, immediate feedback, reusable components
 """
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from typing import Tuple, Dict, Optional
+import json
 import logging
 import os
-import joblib
-import json
 from datetime import datetime
 from pathlib import Path
+
+import joblib
+import matplotlib.pyplot as plt
+import pandas as pd
 
 # ML Libraries
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 
+from config.visualization_config import IMAGES_PATH, save_fig
+
 # Internal modules
 from src.evaluation.metrics import calculate_all_metrics, check_targets_met
-from config.visualization_config import save_fig, IMAGES_PATH
 from src.evaluation.residual_analysis import perform_residual_analysis
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def load_data(input_path: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
+def load_data(input_path: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     """
     Load preprocessed data and respect train/test split markers
 
@@ -46,7 +46,7 @@ def load_data(input_path: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     df = pd.read_csv(input_path)
 
     # Check if data_split column exists (from preprocessing)
-    if 'data_split' not in df.columns:
+    if "data_split" not in df.columns:
         logger.warning("⚠️  'data_split' column missing. Data may not be properly split.")
 
     # Separate features and target
@@ -59,10 +59,8 @@ def load_data(input_path: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
 
 
 def split_data_by_marker(
-    df: pd.DataFrame,
-    X: pd.DataFrame,
-    y: pd.Series
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series]:
+    df: pd.DataFrame, X: pd.DataFrame, y: pd.Series
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series]:
     """
     Split data using existing 'data_split' column to prevent data leakage
 
@@ -74,12 +72,12 @@ def split_data_by_marker(
     Returns:
         X_train, X_val, X_test, y_train, y_val, y_test
     """
-    if 'data_split' in df.columns:
+    if "data_split" in df.columns:
         logger.info("Using existing data_split markers from preprocessing")
 
         # Use existing train/test split
-        train_mask = df['data_split'] == 'train'
-        test_mask = df['data_split'] == 'test'
+        train_mask = df["data_split"] == "train"
+        test_mask = df["data_split"] == "test"
 
         # Further split train into train/val (80/20 of training data)
         train_indices = df[train_mask].index
@@ -89,9 +87,9 @@ def split_data_by_marker(
         val_indices = train_indices[-val_size:]
         train_indices = train_indices[:-val_size]
 
-        X_train = X.loc[train_indices].drop('data_split', axis=1, errors='ignore')
-        X_val = X.loc[val_indices].drop('data_split', axis=1, errors='ignore')
-        X_test = X.loc[test_mask].drop('data_split', axis=1, errors='ignore')
+        X_train = X.loc[train_indices].drop("data_split", axis=1, errors="ignore")
+        X_val = X.loc[val_indices].drop("data_split", axis=1, errors="ignore")
+        X_test = X.loc[test_mask].drop("data_split", axis=1, errors="ignore")
 
         y_train = y.loc[train_indices]
         y_val = y.loc[val_indices]
@@ -103,7 +101,7 @@ def split_data_by_marker(
         from sklearn.model_selection import train_test_split
 
         # Drop data_split if it exists
-        X_clean = X.drop('data_split', axis=1, errors='ignore')
+        X_clean = X.drop("data_split", axis=1, errors="ignore")
 
         X_train, X_temp, y_train, y_temp = train_test_split(
             X_clean, y, train_size=0.6, random_state=42, shuffle=True
@@ -123,7 +121,7 @@ def split_data_by_marker(
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
-def create_label_encoders(X_train: pd.DataFrame) -> Dict[str, LabelEncoder]:
+def create_label_encoders(X_train: pd.DataFrame) -> dict[str, LabelEncoder]:
     """
     Create and fit label encoders for categorical columns ONLY on training data
 
@@ -136,7 +134,7 @@ def create_label_encoders(X_train: pd.DataFrame) -> Dict[str, LabelEncoder]:
         Dictionary mapping column names to fitted LabelEncoders
     """
     encoders = {}
-    categorical_cols = X_train.select_dtypes(include=['object']).columns
+    categorical_cols = X_train.select_dtypes(include=["object"]).columns
 
     if len(categorical_cols) > 0:
         logger.info(f"Creating encoders for: {list(categorical_cols)}")
@@ -152,10 +150,7 @@ def create_label_encoders(X_train: pd.DataFrame) -> Dict[str, LabelEncoder]:
     return encoders
 
 
-def apply_encoders(
-    X: pd.DataFrame,
-    encoders: Dict[str, LabelEncoder]
-) -> pd.DataFrame:
+def apply_encoders(X: pd.DataFrame, encoders: dict[str, LabelEncoder]) -> pd.DataFrame:
     """
     Purpose:
         To encode the categorical values into integers
@@ -171,8 +166,10 @@ def apply_encoders(
     for col, encoder in encoders.items():
         if col in X_encoded.columns:
             # Handle unseen categories by mapping to -1
-            X_encoded[col] = X_encoded[col].astype(str).map(
-                lambda x: encoder.transform([x])[0] if x in encoder.classes_ else -1
+            X_encoded[col] = (
+                X_encoded[col]
+                .astype(str)
+                .map(lambda x: encoder.transform([x])[0] if x in encoder.classes_ else -1)
             )
 
     return X_encoded
@@ -189,22 +186,27 @@ def load_best_hyperparameters(model_name: str = "rand_forest") -> dict:
         Dictionary of hyperparameters
     """
     default_params = {
-        'n_estimators': 100,
-        'max_depth': 20,
-        'min_samples_split': 5,
-        'random_state': 42,
-        'n_jobs': -1
+        "n_estimators": 100,
+        "max_depth": 20,
+        "min_samples_split": 5,
+        "random_state": 42,
+        "n_jobs": -1,
     }
 
     try:
-        config_path = Path(__file__).parent.parent.parent / "config" / "models" / f"best_{model_name}_params.json"
+        config_path = (
+            Path(__file__).parent.parent.parent
+            / "config"
+            / "models"
+            / f"best_{model_name}_params.json"
+        )
 
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             params = json.load(f)
 
         # Ensure n_jobs is set
-        if 'n_jobs' not in params:
-            params['n_jobs'] = -1
+        if "n_jobs" not in params:
+            params["n_jobs"] = -1
 
         logger.info(f"✅ Loaded hyperparameters from {config_path}")
         return params
@@ -214,7 +216,7 @@ def load_best_hyperparameters(model_name: str = "rand_forest") -> dict:
         return default_params
 
 
-def load_target_encodings() -> Dict[str, Dict[str, float]]:
+def load_target_encodings() -> dict[str, dict[str, float]]:
     """
     Load target encoding mappings saved during preprocessing
     """
@@ -222,15 +224,13 @@ def load_target_encodings() -> Dict[str, Dict[str, float]]:
     if not encodings_path.exists():
         logger.warning("⚠️  Target encodings file not found. Inference may fail.")
         return {}
-    with open(encodings_path, 'r') as f:
+    with open(encodings_path) as f:
         return json.load(f)
 
 
 def train_model(
-    X_train: pd.DataFrame,
-    y_train: pd.Series,
-    hyperparameters: Optional[dict] = None
-) -> Tuple[RandomForestRegressor, Dict[str, LabelEncoder], Dict[str, Dict[str, float]]]:
+    X_train: pd.DataFrame, y_train: pd.Series, hyperparameters: dict | None = None
+) -> tuple[RandomForestRegressor, dict[str, LabelEncoder], dict[str, dict[str, float]]]:
     """
     Train Random Forest model with categorical encoding
 
@@ -272,14 +272,14 @@ def train_model(
 
 def evaluate_model(
     model: RandomForestRegressor,
-    encoders: Dict[str, LabelEncoder],
+    encoders: dict[str, LabelEncoder],
     X_val: pd.DataFrame,
     y_val: pd.Series,
     X_train: pd.DataFrame,
     X_test: pd.DataFrame,
     model_name: str = "rand_forest",
-    save_report: bool = True
-) -> Dict[str, float]:
+    save_report: bool = True,
+) -> dict[str, float]:
     """
     Evaluate model on validation set and generate comprehensive report
 
@@ -336,22 +336,18 @@ def evaluate_model(
             targets_met=targets_met,
             model=model,
             model_name=model_name,
-            dataset_sizes={
-                'train': len(X_train),
-                'val': len(X_val),
-                'test': len(X_test)
-            }
+            dataset_sizes={"train": len(X_train), "val": len(X_val), "test": len(X_test)},
         )
 
     return metrics
 
 
 def save_metrics_report(
-    metrics: Dict[str, float],
-    targets_met: Dict[str, bool],
+    metrics: dict[str, float],
+    targets_met: dict[str, bool],
     model: RandomForestRegressor,
     model_name: str,
-    dataset_sizes: Dict[str, int]
+    dataset_sizes: dict[str, int],
 ) -> str:
     """
     Save comprehensive metrics report to JSON
@@ -372,23 +368,23 @@ def save_metrics_report(
         "timestamp": datetime.now().isoformat(),
         "model_name": model_name,
         "dataset": {
-            "training_samples": dataset_sizes['train'],
-            "validation_samples": dataset_sizes['val'],
-            "test_samples": dataset_sizes['test']
+            "training_samples": dataset_sizes["train"],
+            "validation_samples": dataset_sizes["val"],
+            "test_samples": dataset_sizes["test"],
         },
         "model_parameters": {
             "n_estimators": model_params["n_estimators"],
             "max_depth": model_params["max_depth"],
             "min_samples_split": model_params["min_samples_split"],
-            "random_state": model_params["random_state"]
+            "random_state": model_params["random_state"],
         },
         "metrics": {
-            "mae": float(metrics['mae']),
-            "rmse": float(metrics['rmse']),
-            "r2": float(metrics['r2']),
-            "mape": float(metrics['mape']),
-            "tail_rate": float(metrics['tail_rate']),
-            "tc_ape": float(metrics['tc_ape'])
+            "mae": float(metrics["mae"]),
+            "rmse": float(metrics["rmse"]),
+            "r2": float(metrics["r2"]),
+            "mape": float(metrics["mape"]),
+            "tail_rate": float(metrics["tail_rate"]),
+            "tc_ape": float(metrics["tc_ape"]),
         },
         "targets": {
             "mae_target": 2500,
@@ -396,19 +392,21 @@ def save_metrics_report(
             "r2_target": 0.85,
             "mape_target": 4.5,
             "tr_target": 15.0,
-            "tc_ape_target": 6.5
+            "tc_ape_target": 6.5,
         },
-        "targets_met": {k: bool(v) for k, v in targets_met.items()}  # Convert numpy bool_ to Python bool
+        "targets_met": {
+            k: bool(v) for k, v in targets_met.items()
+        },  # Convert numpy bool_ to Python bool
     }
 
     # Create directory
     os.makedirs("src/evaluation/reports/metrics", exist_ok=True)
 
     # Save report
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filepath = f"src/evaluation/reports/metrics/{model_name}_{timestamp}.json"
 
-    with open(filepath, 'w') as f:
+    with open(filepath, "w") as f:
         json.dump(report, f, indent=2)
 
     logger.info(f"📊 Metrics report saved to: {filepath}")
@@ -417,11 +415,8 @@ def save_metrics_report(
 
 
 def get_feature_importance(
-    model: RandomForestRegressor,
-    feature_names: list,
-    top_n: int = 10,
-    save_plot: bool = True
-) -> Dict[str, float]:
+    model: RandomForestRegressor, feature_names: list, top_n: int = 10, save_plot: bool = True
+) -> dict[str, float]:
     """
     Extract and visualize feature importances
 
@@ -456,10 +451,10 @@ def get_feature_importance(
 
     # Save to JSON
     os.makedirs("reports/features", exist_ok=True)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     json_path = f"reports/features/feature_importance_{timestamp}.json"
 
-    with open(json_path, 'w') as f:
+    with open(json_path, "w") as f:
         json.dump(importance_dict, f, indent=2)
 
     logger.info(f"💾 Feature importance saved to: {json_path}")
@@ -485,26 +480,27 @@ def create_feature_importance_plot(top_features: list, top_n: int):
     fig, ax = plt.subplots(figsize=(10, 6))
 
     # Horizontal bars with color gradient
-    bars = ax.barh(range(len(features)), importances, align='center')
+    bars = ax.barh(range(len(features)), importances, align="center")
 
     for i, (bar, imp) in enumerate(zip(bars, importances)):
-        bar.set_color(plt.cm.Blues(0.3 + 0.7 * (imp / max(importances))))
+        bar.set_color(plt.cm.Blues(0.3 + 0.7 * (imp / max(importances))))  # pylint: disable=no-member
 
     ax.set_yticks(range(len(features)))
     ax.set_yticklabels(features)
-    ax.set_xlabel('Importance Score')
-    ax.set_title(f'Top {top_n} Most Important Features')
+    ax.set_xlabel("Importance Score")
+    ax.set_title(f"Top {top_n} Most Important Features")
     ax.invert_yaxis()
 
     # Value labels
     for i, (bar, imp) in enumerate(zip(bars, importances)):
-        ax.text(imp + 0.005, bar.get_y() + bar.get_height()/2,
-                f'{imp:.3f}', va='center', fontsize=10)
+        ax.text(
+            imp + 0.005, bar.get_y() + bar.get_height() / 2, f"{imp:.3f}", va="center", fontsize=10
+        )
 
-    ax.grid(axis='x', alpha=0.3)
+    ax.grid(axis="x", alpha=0.3)
 
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    save_fig(f'feature_importance_top{top_n}_{timestamp}')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_fig(f"feature_importance_top{top_n}_{timestamp}")
     plt.close()
 
     logger.info(f"📊 Feature importance plot saved to: {IMAGES_PATH}")
@@ -512,10 +508,10 @@ def create_feature_importance_plot(top_features: list, top_n: int):
 
 def save_model(
     model: RandomForestRegressor,
-    encoders: Dict[str, LabelEncoder],
-    target_encodings: Dict[str, Dict[str, float]],
+    encoders: dict[str, LabelEncoder],
+    target_encodings: dict[str, dict[str, float]],
     model_name: str = "rand_forest",
-    version: str = "v1"
+    version: str = "v1",
 ) -> str:
     """
     Save trained model AND encoders AND target encodings together
@@ -537,11 +533,11 @@ def save_model(
 
     # Save both model and encoders together
     model_package = {
-        'model': model,
-        'encoders': encoders,
-        'target_encodings': target_encodings,
-        'timestamp': datetime.now().isoformat(),
-        'version': version
+        "model": model,
+        "encoders": encoders,
+        "target_encodings": target_encodings,
+        "timestamp": datetime.now().isoformat(),
+        "version": version,
     }
 
     filepath = save_dir / f"{model_name}_{version}.pkl"
@@ -564,7 +560,9 @@ if __name__ == "__main__":
     best_params = load_best_hyperparameters("rand_forest")
 
     # 4. Train model (returns model, encoders, and target encodings)
-    trained_model, encoders, target_encodings = train_model(X_train, y_train, hyperparameters=best_params)
+    trained_model, encoders, target_encodings = train_model(
+        X_train, y_train, hyperparameters=best_params
+    )
 
     # 5. Evaluate on validation set
     metrics = evaluate_model(
@@ -575,7 +573,7 @@ if __name__ == "__main__":
         X_train=X_train,
         X_test=X_test,
         model_name="rand_forest",
-        save_report=True
+        save_report=True,
     )
 
     # Perform Residual Analysis (diagnose high tail rate)
@@ -593,7 +591,7 @@ if __name__ == "__main__":
         y_pred=y_val_pred,
         X_features=X_val,
         model_name="rand_forest_validation",
-        save_plots=True
+        save_plots=True,
     )
 
     logger.info("✅ Residual analysis complete")
@@ -605,7 +603,9 @@ if __name__ == "__main__":
     top_features = get_feature_importance(trained_model, feature_names, top_n=10)
 
     # 7. Save model package (model + encoders + target encodings)
-    model_path = save_model(trained_model, encoders, target_encodings, model_name="rand_forest", version="v1")
+    model_path = save_model(
+        trained_model, encoders, target_encodings, model_name="rand_forest", version="v1"
+    )
 
     logger.info("=" * 50)
     logger.info("✅ TRAINING PIPELINE COMPLETE")

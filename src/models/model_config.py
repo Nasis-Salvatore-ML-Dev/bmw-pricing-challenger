@@ -12,7 +12,7 @@ RANDOM_FOREST_CONFIGS = {
         "min_samples_leaf": 2,
         "random_state": 42,
         "n_jobs": -1,
-        "description": "Baseline Random Forest - conservative"
+        "description": "Baseline Random Forest - conservative",
     },
     "default": {
         "n_estimators": 100,
@@ -21,7 +21,7 @@ RANDOM_FOREST_CONFIGS = {
         "min_samples_leaf": 1,
         "random_state": 42,
         "n_jobs": -1,
-        "description": "Default scikit-learn Random Forest"
+        "description": "Default scikit-learn Random Forest",
     },
     "deep": {
         "n_estimators": 200,
@@ -30,7 +30,7 @@ RANDOM_FOREST_CONFIGS = {
         "min_samples_leaf": 1,
         "random_state": 42,
         "n_jobs": -1,
-        "description": "Deep trees - may overfit"
+        "description": "Deep trees - may overfit",
     },
     "shallow": {
         "n_estimators": 100,
@@ -39,7 +39,7 @@ RANDOM_FOREST_CONFIGS = {
         "min_samples_leaf": 5,
         "random_state": 42,
         "n_jobs": -1,
-        "description": "Shallow trees - prevents overfitting"
+        "description": "Shallow trees - prevents overfitting",
     },
     "balanced": {
         "n_estimators": 150,
@@ -48,8 +48,8 @@ RANDOM_FOREST_CONFIGS = {
         "min_samples_leaf": 2,
         "random_state": 42,
         "n_jobs": -1,
-        "description": "Balanced configuration"
-    }
+        "description": "Balanced configuration",
+    },
 }
 
 # XGBoost configurations (for future use)
@@ -61,7 +61,7 @@ XGBOOST_CONFIGS = {
         "subsample": 0.8,
         "colsample_bytree": 0.8,
         "random_state": 42,
-        "description": "Baseline XGBoost"
+        "description": "Baseline XGBoost",
     },
     "conservative": {
         "n_estimators": 100,
@@ -70,24 +70,22 @@ XGBOOST_CONFIGS = {
         "subsample": 0.7,
         "colsample_bytree": 0.7,
         "random_state": 42,
-        "description": "Conservative - prevents overfitting"
-    }
+        "description": "Conservative - prevents overfitting",
+    },
 }
 
 # Model selection mapping
-MODEL_CONFIGS = {
-    "random_forest": RANDOM_FOREST_CONFIGS,
-    "xgboost": XGBOOST_CONFIGS
-}
+MODEL_CONFIGS = {"random_forest": RANDOM_FOREST_CONFIGS, "xgboost": XGBOOST_CONFIGS}
+
 
 def get_model_config(model_type: str = "random_forest", config_name: str = "baseline") -> dict:
     """
     Get model configuration by type and name.
-    
+
     Args:
         model_type: "random_forest" or "xgboost"
         config_name: Configuration name (baseline, default, deep, etc.)
-    
+
     Returns:
         Dictionary of hyperparameters
     """

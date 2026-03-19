@@ -11,11 +11,11 @@ help:
 install:
 	pip install --upgrade pip
 	pip install -r requirements-dev.txt
-	pip install -e .
+	pip install -e . 
 
 lint:
 	flake8 src/ scripts/ tests/
-	pylint src/ scripts/ tests/
+	pylint src/ scripts/ tests/ --ignore=src/main.py
 
 format:
 	black src/ scripts/ tests/

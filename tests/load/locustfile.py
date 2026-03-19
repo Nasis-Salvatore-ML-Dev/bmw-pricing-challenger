@@ -1,7 +1,10 @@
 import random
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
+
 
 class BMWPricingUser(HttpUser):
+
     wait_time = between(1, 3)  # wait 1-3 seconds between tasks
 
     @task
@@ -11,11 +14,11 @@ class BMWPricingUser(HttpUser):
             "model_key": random.choice(["320d", "530i", "X5", "M3"]),
             "mileage": random.randint(5000, 200000),
             "engine_power": random.choice([184, 252, 306, 340]),
-            "registration_date": f"20{random.randint(10,20)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
+            "registration_date": f"20{random.randint(10, 20)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
             "fuel": random.choice(["diesel", "petrol"]),
             "paint_color": random.choice(["black", "white", "blue", "grey"]),
             "car_type": random.choice(["sedan", "suv", "coupe"]),
-            "sold_at": f"20{random.randint(15,23)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
+            "sold_at": f"20{random.randint(15, 23)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}",
             "feature_1": random.choice([True, False]),
             "feature_2": random.choice([True, False]),
             "feature_3": random.choice([True, False]),

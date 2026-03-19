@@ -400,7 +400,7 @@ pytest-cov==4.1.0
 install:
 pip install --upgrade pip
 pip install -r requirements-dev.txt
-pip install -e .
+pip install -e . # <--- installs the project as an editable package, and it thus requires a setup.py
 
 lint:
 flake8 src/ scripts/ tests/
@@ -418,8 +418,40 @@ isort src/ scripts/ tests/
 
 ### Purpose: Set up a clean, version‑controlled project with automated quality tools so that one can install dependencies, lint, format, and test the code using simple make commands
 
-## Initialize git and commit the code
+1. Create a github repository
+
+2. Initialize git and commit the code
+
+GitHub actions have the ability to "listen" to the code changes and to resort to previous states
 
 git init
-git add .
+git add . # tells git to watch in all the folders and identify new files or file updates
 git commit -m "Initial commit with project code and CI/CD scaffolding"
+
+2. Connect local repository to github repository
+
+git remote add origin https://github.com/YOUR_USERNAME/bmw-pricing-challenger.git
+git branch -M main
+git push -u origin main
+
+3. Test the Makefile targets
+
+Key test to ensure that the recipes work
+
+make install  
+make lint  
+make format  
+make test
+
+## GitHub Actions – Test with Two or More Python Versions
+
+Purpose:
+
+- checking the code works with multiple Python versions
+- catching syntax, format bugs
+- performing unit tests on specified testing files
+
+git add .
+git add .github/workflows/ci.yml
+git commit -m "Add GitHub Actions CI workflow"
+git push
