@@ -10,22 +10,24 @@ steps:
         pip install -r requirements-dev.txt
         pip install -e .
 
-  # Step 2: Run linting
+  # Step 2: Run linting (install make first)
   - id: "lint"
     name: "python:3.10-slim"
     entrypoint: "bash"
     args:
       - "-c"
       - |
+        apt-get update && apt-get install -y make
         make lint
 
-  # Step 3: Run tests
+  # Step 3: Run tests (install make first)
   - id: "test"
     name: "python:3.10-slim"
     entrypoint: "bash"
     args:
       - "-c"
       - |
+        apt-get update && apt-get install -y make
         make test
 
   # Step 4: (Optional) Upload coverage report to Cloud Storage
