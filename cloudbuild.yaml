@@ -1,16 +1,17 @@
 steps:
-  # Step 1: Install dependencies
+  # Step 1: Install dependencies (with build tools)
   - id: "install"
     name: "python:3.10-slim"
     entrypoint: "bash"
     args:
       - "-c"
       - |
+        apt-get update && apt-get install -y build-essential
         pip install --upgrade pip
         pip install -r requirements-dev.txt
         pip install -e .
 
-  # Step 2: Run linting (install make first)
+  # Step 2: Run linting (install make)
   - id: "lint"
     name: "python:3.10-slim"
     entrypoint: "bash"
@@ -20,7 +21,7 @@ steps:
         apt-get update && apt-get install -y make
         make lint
 
-  # Step 3: Run tests (install make first)
+  # Step 3: Run tests (install make)
   - id: "test"
     name: "python:3.10-slim"
     entrypoint: "bash"
