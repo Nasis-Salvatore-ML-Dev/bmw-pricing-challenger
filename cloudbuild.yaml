@@ -15,13 +15,5 @@ steps:
         make lint
         make test
 
-  - id: "upload"
-    name: "gcr.io/cloud-builders/gsutil"
-    args:
-      - "cp"
-      - "htmlcov/index.html"
-      - "gs://bmw-pricing-bucket/coverage/$(date -u +%Y%m%d-%H%M%S)/"
-    waitFor: ["build"]
-
 options:
   logging: CLOUD_LOGGING_ONLY
