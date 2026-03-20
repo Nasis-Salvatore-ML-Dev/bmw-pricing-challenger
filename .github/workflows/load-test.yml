@@ -21,9 +21,12 @@ jobs:
           pip install locust
           pip install -r requirements.txt
 
+      - name: Warm up API # <-- this is a new step
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" https://bmw-pricing-api-759460685203.europe-west1.run.app/health
+
       - name: Run Locust test
         run: |
-          # Replace this URL with your actual Cloud Run service URL
           locust -f tests/load/locustfile.py \
             --host https://bmw-pricing-api-759460685203.europe-west1.run.app \
             --headless -u 10 -r 2 --run-time 30s \
@@ -31,7 +34,6 @@ jobs:
 
       - name: Check for errors
         run: |
-          # Simple check: if any failure in stats, exit 1
           if grep -q "fail" loadtest_stats.csv; then
             echo "❌ Load test failures detected"
             exit 1
