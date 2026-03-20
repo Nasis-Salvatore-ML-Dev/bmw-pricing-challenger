@@ -11,13 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application code and model
 COPY src/ ./src/
 COPY config/ ./config/
-COPY data/models/checkpoints/ ./data/models/checkpoints/
+COPY data/models/checkpoints/rand_forest_v1.pkl ./data/models/checkpoints/
 
-# Expose port
-EXPOSE 8000
+# Expose the port (Cloud Run will override with $PORT)
+EXPOSE 8080
 
-# Run the API
-CMD ["uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use environment variable for port (Cloud Run sets $PORT)
+CMD ["sh", "-c", "uvicorn src.api.app:app --host 0.0.0.0 --port ${PORT:-8080}"]
