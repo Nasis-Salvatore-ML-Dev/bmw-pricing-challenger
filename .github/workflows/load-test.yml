@@ -3,7 +3,6 @@ name: Load Test
 on:
   push:
     branches: [staging]
-  # Optional: allow manual trigger
   workflow_dispatch:
 
 jobs:
@@ -20,21 +19,22 @@ jobs:
       - name: Install dependencies
         run: |
           pip install locust
-          pip install -r requirements.txt   # only needed if locustfile imports from src
+          pip install -r requirements.txt
 
       - name: Run Locust test
         run: |
-          # Use the Cloud Run URL as the host
+          # Replace this URL with your actual Cloud Run service URL
           locust -f tests/load/locustfile.py \
-            --host https://bmw-pricing-api-<your-project>-ew.a.run.app \
+            --host https://bmw-pricing-api-759460685203.europe-west1.run.app \
             --headless -u 10 -r 2 --run-time 30s \
             --html=report.html --csv=loadtest
 
       - name: Check for errors
         run: |
-          # Extract failure percentage from CSV and fail if > 1%
+          # Simple check: if any failure in stats, exit 1
           if grep -q "fail" loadtest_stats.csv; then
-            echo "Errors detected in load test" && exit 1
+            echo "❌ Load test failures detected"
+            exit 1
           fi
 
       - name: Upload test report
