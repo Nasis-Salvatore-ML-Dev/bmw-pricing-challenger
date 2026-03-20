@@ -3,6 +3,8 @@ name: Load Test
 on:
   push:
     branches: [staging]
+  # Optional: allow manual trigger
+  workflow_dispatch:
 
 jobs:
   locust:
@@ -18,23 +20,21 @@ jobs:
       - name: Install dependencies
         run: |
           pip install locust
-          pip install -r requirements.txt
-
-      - name: Start API (background)
-        run: |
-          uvicorn src.api.app:app --host 0.0.0.0 --port 8000 &
-          sleep 5  # give it time to start
+          pip install -r requirements.txt   # only needed if locustfile imports from src
 
       - name: Run Locust test
         run: |
-          locust -f tests/load/locustfile.py --headless -u 10 -r 2 --run-time 30s --host http://localhost:8000 --csv=loadtest --html=report.html
+          # Use the Cloud Run URL as the host
+          locust -f tests/load/locustfile.py \
+            --host https://bmw-pricing-api-<your-project>-ew.a.run.app \
+            --headless -u 10 -r 2 --run-time 30s \
+            --html=report.html --csv=loadtest
 
-      - name: Check for high error rate
+      - name: Check for errors
         run: |
-          # Extract error rate from CSV and fail if > 1%
+          # Extract failure percentage from CSV and fail if > 1%
           if grep -q "fail" loadtest_stats.csv; then
-            echo "Errors detected"
-            exit 1
+            echo "Errors detected in load test" && exit 1
           fi
 
       - name: Upload test report
