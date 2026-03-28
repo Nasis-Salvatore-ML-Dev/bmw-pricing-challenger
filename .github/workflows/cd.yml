@@ -32,7 +32,7 @@ jobs:
       - name: Run model evaluation gate
         run: |
           python scripts/evaluate_model.py \
-            --model-path models/random_forest.pkl \
+            --model-path data/models/checkpoints/rand_forest_v1.pkl \
             --data-path data/golden/golden_eval.csv \
             --thresholds-path config/evaluation/thresholds.json
 
