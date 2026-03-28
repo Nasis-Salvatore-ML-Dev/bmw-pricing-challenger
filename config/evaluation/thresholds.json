@@ -1,0 +1,27 @@
+{
+  "mae": {
+    "max_acceptable": 2500,
+    "higher_is_better": false,
+    "description": "Mean Absolute Error in euros"
+  },
+  "rmse": {
+    "max_acceptable": 3000,
+    "higher_is_better": false,
+    "description": "Root Mean Squared Error in euros"
+  },
+  "r2": {
+    "max_acceptable": 0.7,
+    "higher_is_better": true,
+    "description": "R-squared — minimum acceptable"
+  },
+  "mape": {
+    "max_acceptable": 30.0,
+    "higher_is_better": false,
+    "description": "Mean Absolute Percentage Error"
+  },
+  "tail_rate": {
+    "max_acceptable": 80.0,
+    "higher_is_better": false,
+    "description": "% cars mispriced by more than 5%"
+  }
+}
