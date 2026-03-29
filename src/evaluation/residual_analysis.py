@@ -351,3 +351,6 @@ def generate_recommendations(analysis_df: pd.DataFrame) -> dict[str, str]:
         )
 
     return recommendations
+
+
+

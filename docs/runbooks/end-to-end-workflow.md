@@ -456,7 +456,7 @@ Purpose:
    git commit -m "Complete linting fixes and add GitHub Actions CI workflow"
    git push
 
-## Google Cloud Build for Continuous Integration
+## Google Cloud Build for Continuous Integration (required cloudbuild.yaml)
 
 Purpose:
 
@@ -472,3 +472,113 @@ Purpose:
 2. Test the trigger
 
 Test whether GCB reacts to a new push, or run the trigger manually
+
+## Containerize the Application and Push to Container Registry
+
+Purpose:
+
+Package FastAPI application and the trained model into a Docker container, which may then be deployed on:
+
+- Locally
+- Cloud Run
+- Kubernetes
+
+Deployment (or roll back) occurs instantly via an image stored on GAR
+
+1. Build a Dockerfile
+
+2. Set up GitHub secrets for authentication to Google Cloud
+
+3. Grant access to google resources by enabling google account roles
+
+3.1 Creating a service account key on Google Cloud named, e.g., github-actions
+
+3.2 Choose the roles
+
+- Artifact Registry Writer to push images
+- Cloud Run Admin to deploy
+- Storage Object Viewer.
+
+  3.3 Generate a JSON key
+  This key "unlocks" google cloud run doors
+
+  3.3 Generate a new secret key - e.g., GCP_SA_KEY - on GitHub where JSON conten twill be pasted
+  This will be the key whereby github can authenticate as Google Cloud service account to:
+
+- Push Docker images to Artifact Registry
+- Deploy to Cloud Run
+
+  3.4 Generate a new repository secret for your project, e.g.: GCP_PROJECT_ID
+  Inside the filed you may paste the same as the project name used on google cloud.
+
+  3.5 Grant the iam.serviceAccountUser role to your GitHub Actions service account on the default compute engine service account, so that.
+
+  Purpose: GitHub Actions service account must have permission to act as the default compute service account, which Cloud Run needs to run the container
+
+  3.5.1 Go to IAM & Admin > IAM
+  3.5.2 Now, "Grant Access" to github service account by adding as a new principal the email of github service account
+  and by adding the role: serviceAccountUser
+
+4. Create an Artifact Registry Repository
+
+gcloud artifacts repositories create bmw-repo \
+ --repository-format=docker \
+ --location=europe-west1 \
+ --description="Docker repository for BMW pricing API"
+
+5.  Commit and push teh changes
+
+git add .github/workflows/cd.yml
+git commit -m "Re-enable CD workflow for container build and deployment"
+git push
+
+## Perform a Load Test with Locust, then run and push to Staging
+
+Purpose: To simulate users' traffic to the API whenever changes are pushed to the staging branch. It helps measure
+how the API responds to increasing concurrent requests before the changes are pushed to the main branch
+
+1. Create a staging branch
+
+git checkout -b staging
+git push -u origin staging
+
+2. Write a locustfile.py, which simulates users' requests to the chosen endpoint (ramp‑up of 2 users/sec)
+
+If any errors occur, the workflow will fail, preventing the merge
+
+3. Create a new GitHub Actions workflow, load-test.yml
+
+Make sure the service URL on Cloud Run (the Target host) is correctly set up in this file
+
+4. Commit and push the new workflow file, load-test.yml, and then download the report
+
+Go to the Actions tab and download the "Locust Test Report" report (it's on Artifacts section on load-test.yml workflow ):
+
+- Requests per second
+- Response times (min, max, average, percentiles)
+- Failure count
+
+Investigate the API logs in Cloud Run if tests fail
+
+## Monitoring
+
+1. Monitoring → Uptime checks
+
+2. Create a new uptime check to continuously verify that the /health endpoint is responding with a 200 status (always running).
+   It gives confidence that the API is available
+
+- Name: bmw-pricing-api-health
+- Protocol: HTTPS
+- Resource type: URL
+- URL: https://bmw-pricing-api-xxxxxxxx.europe-west1.run.app/health
+- Check interval: 1 minute
+- Response timeout: 10 seconds
+
+3. When you push new change, such as re-configuring Cloud Run for better latency, ensure via "Revisions" on Cloud Run that the changes have propagated
+
+## Merge branches: from staging to main
+
+git checkout main
+git pull origin main
+git merge staging
+git push origin main
