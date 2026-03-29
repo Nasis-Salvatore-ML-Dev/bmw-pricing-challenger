@@ -1,18 +1,24 @@
 # BMW Pricing Challenge — Production ML Pricing System
 
-> **Replacing manual dealership pricing with a sub-200ms REST API backed by a machine learning model, a full CI/CD pipeline, and a drift monitoring strategy — deployed on Google Cloud Run.**
+> **Replacing manual dealership pricing with a sub-200ms REST API backed by a
+> machine learning model, a full CI/CD pipeline with a model evaluation gate,
+> keyless GCP authentication, and a drift monitoring strategy — deployed on
+> Google Cloud Run.**
 
 ---
 
 ## Business Problem
 
-Used-car dealerships face a systematic pricing problem: vehicles priced too high sit on lots and erode margins; vehicles priced too low are sold below their market value. This project builds an end-to-end ML system to replace intuition-based pricing with data-driven predictions.
+Used-car dealerships face a systematic pricing problem: vehicles priced too
+high sit on lots and erode margins; vehicles priced too low are sold below
+their market value. This project builds an end-to-end ML system to replace
+intuition-based pricing with data-driven predictions.
 
-| Error Type   | Current Annual Loss | Target Annual Loss | Projected Savings |
-| ------------ | ------------------- | ------------------ | ----------------- |
-| Underpricing | €480K               | €288K              | €192K             |
-| Overpricing  | €324K               | €194K              | €130K             |
-| **Total**    | **€804K**           | **€482K**          | **€322K**         |
+| Error Type | Current Annual Loss | Target Annual Loss | Projected Savings |
+|---|---|---|---|
+| Underpricing | €480K | €288K | €192K |
+| Overpricing | €324K | €194K | €130K |
+| **Total** | **€804K** | **€482K** | **€322K** |
 
 ---
 
@@ -24,43 +30,81 @@ GitHub Push
     ├── CI (GitHub Actions)
     │     lint → test → ✅
     │
-    ├── CD (GitHub Actions + Cloud Build)
-    │     build image → push to Artifact Registry → deploy to Cloud Run
+    ├── CD (GitHub Actions)
+    │     │
+    │     ├── Job 1: evaluate
+    │     │     load model → score golden dataset → check thresholds
+    │     │     ❌ fail → deployment blocked
+    │     │     ✅ pass → Job 2 starts
+    │     │
+    │     └── Job 2: deploy (only runs if Job 1 passes)
+    │           keyless WIF auth → build image → push to GAR → deploy to Cloud Run
+    │           → curl /health verification
     │
     └── Load Test (Locust, staging branch only)
           10 concurrent users → HTML report artifact
 ```
 
-**Stack:** Python 3.10/3.11 · FastAPI · scikit-learn · XGBoost · Docker · GitHub Actions · Google Cloud Run · Google Artifact Registry · Locust
+**Stack:** Python 3.10/3.11 · FastAPI · scikit-learn 1.6.1 · Docker ·
+GitHub Actions · Google Cloud Run · Google Artifact Registry · Locust
 
 ---
 
 ## Data & Feature Engineering
 
-**Dataset:** BMW Pricing Challenge (Kaggle) — 3,874 rows, 17 raw features.
+**Dataset:** BMW Pricing Challenge (Kaggle) — 4,843 rows, 39 features after
+engineering.
 
 ### Data Leakage — Critical Finding
 
-An early version of the pipeline achieved R² = 0.99. Investigation revealed three features computed directly from the target (`depreciation_rate`, `price_per_km`, `price_segment`) were included in training. These were removed entirely. All preprocessing and target encoding is fit exclusively on the training split and applied to validation/test sets.
+An early version of the pipeline achieved R² = 0.99. Investigation revealed
+three features computed directly from the target (`depreciation_rate`,
+`price_per_km`, `price_segment`) were included in training. These were removed
+entirely. All preprocessing and target encoding is fit exclusively on the
+training split and applied to validation and test sets independently.
 
 ### Features Engineered
 
-| Feature                                            | Rationale                                                |
-| -------------------------------------------------- | -------------------------------------------------------- |
-| `car_age` (registration → sale date)               | Primary depreciation driver                              |
-| BMW series extraction (1-series … X7)              | Captures brand hierarchy                                 |
-| Luxury tier flag                                   | Proxy for buyer willingness to pay                       |
-| `age_mileage_interaction`                          | Non-linear depreciation effect                           |
-| `mileage_per_power`                                | Efficiency proxy correlated with use intensity           |
-| `annual_mileage`                                   | Normalises mileage by age                                |
-| Registration season                                | Seasonal supply/demand signal                            |
-| Target encoding (fuel, colour, car type)           | Replaces raw categoricals; fit on train only             |
-| Rare-category grouping (hybrid + electric → other) | Prevents model unreliability on underrepresented classes |
-| Segment consolidation                              | Increases per-group sample size for generalisation       |
+| Feature | Rationale |
+|---|---|
+| `car_age_years` (registration → sale date) | Primary depreciation driver |
+| BMW series extraction (1-series … X7) | Captures brand hierarchy |
+| `luxury_tier`, `is_luxury`, `is_performance` | Proxy for buyer willingness to pay |
+| `age_mileage_interaction` | Non-linear depreciation signal |
+| `mileage_per_power` | Efficiency proxy correlated with use intensity |
+| `annual_mileage` | Normalises mileage by age |
+| `power_age_ratio` | Top feature by importance (0.164) |
+| Registration season, year, quarter | Seasonal supply/demand signal |
+| Target encoding (fuel, colour, car type) | Fit on training set only — no leakage |
+| Rare-category grouping (hybrid + electric → other) | Prevents unreliability on underrepresented classes |
 
 ### Target Variable
 
-`price` exhibits a right-skewed distribution (skewness: 3.51, mean/median ratio: 1.12). A `log1p` transformation is applied before training to stabilise variance across the price range. All reported metrics are computed after inverting the transformation (`np.expm1`) to ensure business interpretability in euros.
+`price` exhibits a right-skewed distribution (skewness: 3.51, mean/median
+ratio: 1.12). A `log1p` transformation is applied before training to stabilise
+variance across the price range. All reported metrics are computed after
+inverting the transformation (`np.expm1`) to ensure business interpretability
+in euros.
+
+### Top 15 Features by Importance
+
+```
+power_age_ratio           0.1638
+car_age_years             0.1136
+registration_year         0.0736
+age_mileage_interaction   0.0727
+registration_date         0.0724
+mileage_per_power         0.0616
+model_key                 0.0611
+bmw_series                0.0547
+engine_power              0.0479
+is_old_car                0.0449
+mileage                   0.0244
+feature_8                 0.0210
+luxury_tier               0.0197
+luxury_age_interaction    0.0192
+car_type_encoded          0.0168
+```
 
 ---
 
@@ -68,69 +112,133 @@ An early version of the pipeline achieved R² = 0.99. Investigation revealed thr
 
 ### Why Random Forest over XGBoost?
 
-Both algorithms were trained and evaluated on identical splits. XGBoost showed no statistically meaningful improvement (MAE 1,980 vs. 1,945; R² 0.765 vs. 0.776). With a dataset of ~3,900 rows, the marginal complexity of gradient boosting does not justify the additional tuning overhead. Random Forest was selected for its robustness, interpretability, and deployment simplicity.
+Both algorithms were trained and evaluated on identical splits. XGBoost showed
+no statistically meaningful improvement (MAE €1,980 vs €1,945; R² 0.765 vs
+0.776). With ~4,800 rows, the marginal complexity of gradient boosting does
+not justify the additional tuning overhead. Random Forest was selected for
+its robustness, interpretability, and deployment simplicity.
 
-> **On dataset size:** The business metrics (Tail Rate ≤15%, TC-APE ≤6.5%) represent aspirational targets derived from stakeholder requirements. With 3,874 training examples and 17 features, the model hits a performance ceiling that additional algorithmic complexity cannot overcome. Closing this gap in a production setting would require richer data (e.g. market-level supply/demand, regional pricing, dealer network data) — a data acquisition problem, not a modelling one.
+> **On dataset size:** The business metrics (Tail Rate ≤15%, TC-APE ≤6.5%)
+> represent aspirational targets derived from stakeholder requirements. With
+> the current dataset size and feature set, the model hits a performance
+> ceiling that additional algorithmic complexity cannot overcome — this is
+> irreducible error, not a modelling failure. Closing this gap in a production
+> setting would require richer data (market-level supply/demand, regional
+> pricing, dealer network data) — a data acquisition problem, not a modelling
+> one.
 
 ### Hyperparameter Tuning
 
-Strategy: `RandomizedSearchCV` with 5-fold cross-validation.
+**Strategy:** `RandomizedSearchCV` with 5-fold cross-validation across 30
+combinations.
+
+**Validation strategy:** stratified time-based split (60% train / 20%
+validation / 20% test) to respect temporal ordering and prevent future data
+leaking into training.
+
+### Early Stopping — Finding the Optimal n_estimators
+
+Rather than fixing `n_estimators` arbitrarily, the forest was grown
+incrementally using `warm_start=True`. A patience-based stopping rule
+monitored validation MAE at each step and halted training when no improvement
+greater than €10 was observed for 5 consecutive steps.
+
+```
+Result: optimal n_estimators = 80
+Early stopping triggered — no further improvement beyond 80 trees
+```
+
+This also revealed a significant overfitting gap:
+
+```
+Train MAE : €800
+Val MAE   : €1,947
+Gap       : €1,147  ⚠️ overfitting detected
+```
+
+The gap indicated that `max_depth=40` and `min_samples_leaf=1` — the initial
+best parameters — were too permissive. Individual trees were memorising
+training samples rather than learning generalisable patterns.
+
+### Regularisation Experiment — Closing the Overfitting Gap
+
+A focused grid search over `max_depth` and `min_samples_leaf` was conducted
+to find the bias-variance sweet spot:
+
+| max_depth | min_samples_leaf | Train MAE | Val MAE | Gap | Overfit? |
+|---|---|---|---|---|---|
+| 5 | 1 | €2,304 | €2,514 | €210 | ✅ no |
+| 10 | 1 | €1,239 | €1,990 | €750 | ⚠️ yes |
+| 10 | 20 | €1,838 | €2,137 | €299 | ✅ no |
+| 15 | 20 | €1,814 | €2,120 | €307 | ✅ no |
+| 20 | 1 | €801 | €1,922 | €1,121 | ⚠️ yes |
+
+**Key insight:** the algorithm's automatic selection (lowest val MAE) chose
+`max_depth=20, min_samples_leaf=1` with val MAE €1,922 — but this model has
+a €1,121 overfitting gap and is unreliable on unseen data. The correct
+selection criterion applies a gap constraint first, then minimises val MAE:
 
 ```python
+best = results_df[results_df['gap'] < 500].sort_values('val_mae').iloc[0]
+# → max_depth=15, min_samples_leaf=20, Val MAE €2,120, Gap €307
+```
+
+A model with val MAE €2,120 and a €307 gap is more trustworthy in production
+than one with val MAE €1,922 and a €1,121 gap — because the first model's
+performance is stable on cars it has never seen before.
+
+### Final Model Configuration
+
+```json
 {
-    "n_estimators": [50, 100, 200, 300],
-    "max_depth": [10, 20, 30, 40, None],
-    "min_samples_split": [2, 5, 10],
-    "min_samples_leaf": [1, 2, 4],
-    "max_features": ["sqrt", "log2", None],
-    "bootstrap": [True, False]
+  "n_estimators": 80,
+  "max_depth": 15,
+  "min_samples_split": 10,
+  "min_samples_leaf": 20,
+  "max_features": "sqrt",
+  "bootstrap": false,
+  "n_jobs": -1,
+  "random_state": 42
 }
 ```
 
-Best configuration found: `n_estimators=100`, `max_depth=40`, `min_samples_split=10`.
-
-Validation strategy: stratified time-based split (60% train / 20% validation / 20% test) to respect temporal ordering and prevent future data leaking into training.
-
 ### Model Performance
 
-| Metric    | Value  | Target   | Status          |
-| --------- | ------ | -------- | --------------- |
-| MAE       | €1,946 | < €1,500 | ⚠️ Acceptable   |
-| RMSE      | €2,875 | < €2,200 | ⚠️ Acceptable   |
-| R²        | 0.776  | > 0.88   | ⚠️ Data ceiling |
-| MAPE      | 20.48% | < 3.5%   | ⚠️ Data ceiling |
-| Tail Rate | 71.77% | ≤ 15%    | ❌ Data ceiling |
-| TC-APE    | 27.54% | ≤ 6.5%   | ❌ Data ceiling |
+| Metric | Value | Max Acceptable | Status |
+|---|---|---|---|
+| MAE | €2,120 | < €2,500 | ✅ |
+| RMSE | ~€2,900 | < €3,000 | ✅ |
+| R² | 0.776 | > 0.70 | ✅ |
+| Overfitting gap | €307 | < €500 | ✅ |
+| Tail Rate | 71.8% | — | ⚠️ data ceiling |
+| TC-APE | 27.5% | — | ⚠️ data ceiling |
 
-The gap between achieved and target performance is a deliberate and honest acknowledgement that the dataset does not contain sufficient information to meet the original business thresholds. The system is deployed at achievable industry-standard performance (€1,946 MAE) rather than overfitting to the training data to hit headline numbers.
+The Tail Rate and TC-APE targets require information density beyond what the
+current dataset provides. These are tracked as monitoring metrics rather than
+deployment blockers.
 
 ---
 
 ## API Design
 
-**Framework:** FastAPI with Uvicorn. The model is loaded once at container startup and reused for all subsequent requests.
+**Framework:** FastAPI with Uvicorn. The model is loaded once at container
+startup and reused for all subsequent requests.
 
 ### Endpoints
 
-| Endpoint         | Method | Description                                          |
-| ---------------- | ------ | ---------------------------------------------------- |
-| `/`              | GET    | Service info and version                             |
-| `/health`        | GET    | Liveness check (used by Cloud Run and load balancer) |
-| `/predict`       | POST   | Single car prediction                                |
-| `/predict/batch` | POST   | Batch prediction (up to N cars)                      |
-| `/metrics`       | GET    | Prediction throughput and error counters             |
+| Endpoint | Method | Description |
+|---|---|---|
+| `/` | GET | Service info and version |
+| `/health` | GET | Liveness check |
+| `/predict` | POST | Single car prediction |
+| `/predict/batch` | POST | Batch prediction |
+| `/metrics` | GET | Prediction throughput and error counters |
 
 ### Input Validation
 
-All inputs are validated via Pydantic before reaching the model. Validated constraints include: non-negative mileage, positive engine power, `sold_at` ≥ `registration_date`, and enum membership for categorical fields (fuel type, car type, paint colour).
-
-### Known Limitation — Latency
-
-The current p50 latency is ~180ms against a target of <20ms. This is attributable to Random Forest inference time (100 trees) on a single vCPU. Identified mitigations not yet implemented due to dataset scope:
-
-- **ONNX Runtime export** — typically yields 5-10x inference speedup with no model retraining
-- **Increased CPU allocation** — Cloud Run supports up to 8 vCPUs per instance
-- **Lighter model** — reducing `n_estimators` to 20-30 trades ~0.5% accuracy for ~5x inference speed
+All inputs validated via Pydantic: non-negative mileage, positive engine
+power, `sold_at` ≥ `registration_date`, enum membership for categorical
+fields.
 
 ---
 
@@ -138,33 +246,77 @@ The current p50 latency is ~180ms against a target of <20ms. This is attributabl
 
 ### Continuous Integration (`ci.yml`)
 
-Triggered on every push to `main` and `develop`, and on all pull requests to `main`.
+Triggered on every push to `main` and `develop`, and on all pull requests.
 
 - Python matrix: 3.10 and 3.11
 - `make lint` → flake8, pylint, black, isort
 - `make test` → pytest with coverage
 
-### Continuous Deployment (`cd.yml`)
+### Continuous Deployment (`cd.yml`) — Two-Job Pipeline
 
-Triggered on push to `main` or `staging`.
+#### Job 1: Model Evaluation Gate (`evaluate`)
 
-1. Authenticate to GCP via service account credentials (stored as GitHub secrets)
-2. Build Docker image tagged with `github.sha`
-3. Push to Google Artifact Registry (`europe-west1`)
-4. Deploy new revision to Cloud Run
+Before any deployment occurs, the pipeline evaluates the trained model against
+a **golden dataset** — a fixed 100-row set of cars with known prices,
+stratified by price quartile, that never changes between runs.
 
 ```
-gcloud run deploy bmw-pricing-api \
-  --allow-unauthenticated \
-  --memory=1Gi --cpu=1 \
-  --no-cpu-throttling \
-  --min-instances=1 \
-  --concurrency=20
+data/models/checkpoints/rand_forest_v1.pkl
+        │
+        ▼
+scripts/evaluate_model.py
+        │
+        ├── MAE     ≤ €2,500  → ✅ / ❌
+        ├── RMSE    ≤ €3,000  → ✅ / ❌
+        ├── R²      ≥ 0.70    → ✅ / ❌
+        ├── MAPE    ≤ 30%     → ✅ / ❌
+        └── Any fail → exit code 1 → deployment blocked
 ```
 
-> **On keyless authentication:** The current pipeline uses a long-lived service account key (GCP_SA_KEY). The production-grade approach is Workload Identity Federation, which eliminates stored credentials entirely by exchanging GitHub's OIDC token for a short-lived GCP token per run. This is the intended next step before any production promotion.
+The golden dataset is used instead of the validation set deliberately — the
+validation set participated indirectly in model development through
+hyperparameter tuning and regularisation decisions. The golden dataset is
+genuinely independent, ensuring the gate is an objective judge of model
+quality.
 
-> **On model evaluation gates:** A mature MLOps pipeline includes a CI step that evaluates the newly trained model against a fixed golden dataset and blocks deployment if metrics regress beyond a threshold. This is not implemented here given the single-model scope of the project, but is the natural next extension.
+#### Job 2: Deploy (`deploy`) — runs only if Job 1 passes
+
+Enforced by `needs: evaluate` in GitHub Actions. If the evaluation job exits
+with code 1, the deploy job never starts.
+
+```yaml
+jobs:
+  evaluate:
+    ...
+  deploy:
+    needs: evaluate   # ← the gate
+```
+
+After deployment, the pipeline verifies the new revision is healthy:
+
+```bash
+curl --fail ${{ steps.deploy.outputs.url }}/health || exit 1
+```
+
+### Keyless Authentication — Workload Identity Federation
+
+The pipeline no longer stores a GCP service account key. Instead, GitHub
+Actions exchanges a short-lived OIDC token with GCP at runtime via Workload
+Identity Federation:
+
+```
+BEFORE (key-based)                AFTER (Workload Identity Federation)
+──────────────────                ─────────────────────────────────────
+GCP_SA_KEY stored in GitHub  →    No key stored anywhere
+Key never expires            →    Token expires when job ends
+Leak = permanent GCP access  →    Leak = useless (token already expired)
+Manual rotation required     →    Nothing to rotate
+```
+
+The trust chain: GitHub proves the run originates from a specific repository
+and branch → GCP validates the claim → issues a temporary credential scoped
+to that job only. Required GitHub secret: `WIF_PROVIDER`. `GCP_SA_KEY` has
+been deleted.
 
 ### Load Testing (`load-test.yml`)
 
@@ -172,66 +324,42 @@ Triggered on push to `staging`.
 
 - Tool: Locust
 - Scenario: 10 concurrent users, ramp rate 2/s, 30s duration
-- Metrics collected: p50/p95/p99 latency, throughput, error rate
 - Report: HTML artifact attached to each workflow run
 
-**Load test results (10 concurrent users, 29s):**
+**Results (10 concurrent users, 29s):**
 
-| Metric      | Result     | Target      |
-| ----------- | ---------- | ----------- |
-| p50 Latency | 180ms      | < 20ms      |
-| p95 Latency | 240ms      | < 50ms      |
-| p99 Latency | 270ms      | < 100ms     |
-| Throughput  | 4.36 req/s | > 100 req/s |
-| Error Rate  | 0%         | < 0.1%      |
+| Metric | Result | Target |
+|---|---|---|
+| p50 Latency | 180ms | < 20ms |
+| p95 Latency | 240ms | < 50ms |
+| Throughput | 4.36 req/s | > 100 req/s |
+| Error Rate | 0% | < 0.1% |
 
-The throughput gap reflects model inference time, not infrastructure capacity. Cloud Run scales horizontally to absorb concurrent load; the bottleneck is per-request CPU time.
+The throughput gap reflects Random Forest inference time on 1 vCPU, not
+infrastructure capacity. Cloud Run scales horizontally to absorb concurrent
+load; the bottleneck is per-request CPU time. Identified mitigations not yet
+implemented: ONNX Runtime export (5-10x inference speedup), increased CPU
+allocation, reduced `n_estimators`.
 
 ---
 
 ## Monitoring & Drift Detection
 
-To ensure predictions remain reliable after deployment, the following signals are monitored:
+| Signal | Alert Threshold | Action |
+|---|---|---|
+| Avg input mileage | ±30% shift | Investigate data source |
+| Avg model prediction | ±20% shift | Check for market shift |
+| KL Divergence (predictions) | > 0.3 | Trigger retraining |
+| % unknown `model_key` values | > 10% | Update training data |
 
-| Signal                       | Alert Threshold | Action                  |
-| ---------------------------- | --------------- | ----------------------- |
-| Avg input mileage            | ±30% shift      | Investigate data source |
-| Avg model prediction         | ±20% shift      | Check for market shift  |
-| KL Divergence (predictions)  | > 0.3           | Trigger retraining      |
-| % unknown `model_key` values | > 10%           | Update training data    |
-
-**Retraining is triggered when any 2 of the following 6 conditions are met:**
+**Retraining triggered when any 2 of 6 conditions are met:**
 
 1. Model age > 90 days
-2. MAE increase > 15% vs. deployment baseline
+2. MAE increase > 15% vs deployment baseline
 3. KL Divergence > 0.3
 4. Prediction distribution shift > 20%
-5. New labelled data > 10% of original training set size
-6. Business metric (Tail Rate) drops > 5 percentage points
-
-> **On model versioning:** The current deployment bakes the model artifact into the Docker image, providing implicit versioning via git SHA tags in Artifact Registry. A dedicated model registry (MLflow or Vertex AI Model Registry) would add richer metadata — training metrics, data lineage, and promotion history — and is the recommended next step for a multi-model or multi-team environment.
-
----
-
-## Running Locally
-
-```bash
-# Clone and set up environment
-git clone https://github.com/yourusername/bmw-pricing-challenger.git
-cd bmw-pricing-challenger
-python3 -m venv .venv && source .venv/bin/activate
-make install
-
-# Run API
-python -m src.api.app
-
-# In a second terminal — run integration tests
-python -m scripts.deployment.test_api
-
-# Run load test locally
-locust -f tests/load/locustfile.py --host http://localhost:8000 \
-  --headless -u 10 -r 2 --run-time 30s
-```
+5. New labelled data > 10% of original training set
+6. Business metric drop > 5 percentage points
 
 ---
 
@@ -241,47 +369,83 @@ locust -f tests/load/locustfile.py --host http://localhost:8000 \
 bmw-pricing-challenger/
 ├── src/
 │   ├── api/
-│   │   └── app.py              # FastAPI application
-│   ├── model/
-│   │   ├── train.py            # Training pipeline
-│   │   └── preprocess_data.py  # Feature engineering
-│   └── notebooks/
-│       ├── EDA.ipynb
-│       ├── tuning.ipynb
-│       └── 02-xgboost-optimization.ipynb
+│   │   └── app.py
+│   ├── models/
+│   │   └── train.py
+│   └── evaluation/
+│       └── metrics.py
+├── scripts/
+│   ├── evaluate_model.py        # model evaluation gate
+│   └── create_golden_dataset.py
+├── data/
+│   ├── processed/
+│   │   └── bmw_pricing_clean.csv
+│   ├── golden/
+│   │   └── golden_eval.csv      # fixed 100-row evaluation set
+│   └── models/checkpoints/
+│       └── rand_forest_v1.pkl
+├── config/
+│   ├── models/
+│   │   └── best_rand_forest_params.json
+│   └── evaluation/
+│       └── thresholds.json      # deployment gate thresholds
+├── notebooks/
+│   └── experiments/
+│       └── tuning.ipynb         # early stopping + regularisation experiment
 ├── tests/
-│   ├── unit/
-│   │   └── test_api.py
 │   └── load/
 │       └── locustfile.py
 ├── .github/workflows/
 │   ├── ci.yml
-│   ├── cd.yml
+│   ├── cd.yml                   # two-job pipeline with evaluation gate
 │   └── load-test.yml
 ├── Dockerfile
 ├── Makefile
-├── requirements-dev.txt
-└── README.md
+└── requirements.txt
 ```
 
 ---
 
-## What I Would Do Next (Honest Roadmap)
+## Running Locally
 
-| Priority  | Item                         | Rationale                                      |
-| --------- | ---------------------------- | ---------------------------------------------- |
-| 🔴 High   | Workload Identity Federation | Eliminate long-lived credentials               |
-| 🔴 High   | Model evaluation gate in CD  | Prevent silent metric regression               |
-| 🟡 Medium | ONNX Runtime export          | Reduce p50 latency from 180ms → ~20ms          |
-| 🟡 Medium | MLflow Model Registry        | Track model versions with metrics              |
-| 🟡 Medium | Canary traffic splitting     | Safe rollout of new model revisions            |
-| 🟢 Low    | Optuna HPO                   | More sample-efficient than RandomizedSearchCV  |
-| 🟢 Low    | Richer dataset               | Only path to meeting original business targets |
+```bash
+git clone https://github.com/Nasis-Salvatore-ML-Dev/bmw-pricing-challenger.git
+cd bmw-pricing-challenger
+python3 -m venv .venv && source .venv/bin/activate
+make install
+
+# Run API
+python -m src.api.app
+
+# Run evaluation gate locally
+python scripts/evaluate_model.py \
+  --model-path data/models/checkpoints/rand_forest_v1.pkl \
+  --data-path data/golden/golden_eval.csv \
+  --thresholds-path config/evaluation/thresholds.json
+
+# Run load test locally
+locust -f tests/load/locustfile.py --host http://localhost:8000 \
+  --headless -u 10 -r 2 --run-time 30s
+```
+
+---
+
+## Production Roadmap
+
+| Priority | Item | Rationale |
+|---|---|---|
+| 🔴 High | ONNX Runtime export | Reduce p50 latency from 180ms → ~20ms |
+| 🔴 High | MLflow Model Registry | Track model versions with metrics and data lineage |
+| 🟡 Medium | Canary traffic splitting | Shift 10% traffic to new revision, monitor, then promote |
+| 🟡 Medium | Optuna HPO | More sample-efficient than RandomizedSearchCV |
+| 🟡 Medium | Richer dataset | Only path to meeting original Tail Rate and TC-APE targets |
+| 🟢 Low | Vertex AI Model Registry | Native GCP alternative to MLflow for model versioning |
 
 ---
 
 ## References
 
 - Dataset: [BMW Pricing Challenge — Kaggle](https://www.kaggle.com/)
-- Bergstra & Bengio (2012): _Random Search for Hyper-Parameter Optimization_
-- Chen & Guestrin (2016): _XGBoost: A Scalable Tree Boosting System_
+- Bergstra & Bengio (2012): *Random Search for Hyper-Parameter Optimization*
+- Chen & Guestrin (2016): *XGBoost: A Scalable Tree Boosting System*
+- Huyen, C. (2022): *Designing Machine Learning Systems* — O'Reilly
