@@ -14,11 +14,11 @@ high sit on lots and erode margins; vehicles priced too low are sold below
 their market value. This project builds an end-to-end ML system to replace
 intuition-based pricing with data-driven predictions.
 
-| Error Type | Current Annual Loss | Target Annual Loss | Projected Savings |
-|---|---|---|---|
-| Underpricing | €480K | €288K | €192K |
-| Overpricing | €324K | €194K | €130K |
-| **Total** | **€804K** | **€482K** | **€322K** |
+| Error Type   | Current Annual Loss | Target Annual Loss | Projected Savings |
+| ------------ | ------------------- | ------------------ | ----------------- |
+| Underpricing | €480K               | €288K              | €192K             |
+| Overpricing  | €324K               | €194K              | €130K             |
+| **Total**    | **€804K**           | **€482K**          | **€322K**         |
 
 ---
 
@@ -65,17 +65,17 @@ training split and applied to validation and test sets independently.
 
 ### Features Engineered
 
-| Feature | Rationale |
-|---|---|
-| `car_age_years` (registration → sale date) | Primary depreciation driver |
-| BMW series extraction (1-series … X7) | Captures brand hierarchy |
-| `luxury_tier`, `is_luxury`, `is_performance` | Proxy for buyer willingness to pay |
-| `age_mileage_interaction` | Non-linear depreciation signal |
-| `mileage_per_power` | Efficiency proxy correlated with use intensity |
-| `annual_mileage` | Normalises mileage by age |
-| `power_age_ratio` | Top feature by importance (0.164) |
-| Registration season, year, quarter | Seasonal supply/demand signal |
-| Target encoding (fuel, colour, car type) | Fit on training set only — no leakage |
+| Feature                                            | Rationale                                          |
+| -------------------------------------------------- | -------------------------------------------------- |
+| `car_age_years` (registration → sale date)         | Primary depreciation driver                        |
+| BMW series extraction (1-series … X7)              | Captures brand hierarchy                           |
+| `luxury_tier`, `is_luxury`, `is_performance`       | Proxy for buyer willingness to pay                 |
+| `age_mileage_interaction`                          | Non-linear depreciation signal                     |
+| `mileage_per_power`                                | Efficiency proxy correlated with use intensity     |
+| `annual_mileage`                                   | Normalises mileage by age                          |
+| `power_age_ratio`                                  | Top feature by importance (0.164)                  |
+| Registration season, year, quarter                 | Seasonal supply/demand signal                      |
+| Target encoding (fuel, colour, car type)           | Fit on training set only — no leakage              |
 | Rare-category grouping (hybrid + electric → other) | Prevents unreliability on underrepresented classes |
 
 ### Target Variable
@@ -165,13 +165,13 @@ training samples rather than learning generalisable patterns.
 A focused grid search over `max_depth` and `min_samples_leaf` was conducted
 to find the bias-variance sweet spot:
 
-| max_depth | min_samples_leaf | Train MAE | Val MAE | Gap | Overfit? |
-|---|---|---|---|---|---|
-| 5 | 1 | €2,304 | €2,514 | €210 | ✅ no |
-| 10 | 1 | €1,239 | €1,990 | €750 | ⚠️ yes |
-| 10 | 20 | €1,838 | €2,137 | €299 | ✅ no |
-| 15 | 20 | €1,814 | €2,120 | €307 | ✅ no |
-| 20 | 1 | €801 | €1,922 | €1,121 | ⚠️ yes |
+| max_depth | min_samples_leaf | Train MAE | Val MAE | Gap    | Overfit? |
+| --------- | ---------------- | --------- | ------- | ------ | -------- |
+| 5         | 1                | €2,304    | €2,514  | €210   | ✅ no    |
+| 10        | 1                | €1,239    | €1,990  | €750   | ⚠️ yes   |
+| 10        | 20               | €1,838    | €2,137  | €299   | ✅ no    |
+| 15        | 20               | €1,814    | €2,120  | €307   | ✅ no    |
+| 20        | 1                | €801      | €1,922  | €1,121 | ⚠️ yes   |
 
 **Key insight:** the algorithm's automatic selection (lowest val MAE) chose
 `max_depth=20, min_samples_leaf=1` with val MAE €1,922 — but this model has
@@ -204,14 +204,14 @@ performance is stable on cars it has never seen before.
 
 ### Model Performance
 
-| Metric | Value | Max Acceptable | Status |
-|---|---|---|---|
-| MAE | €2,120 | < €2,500 | ✅ |
-| RMSE | ~€2,900 | < €3,000 | ✅ |
-| R² | 0.776 | > 0.70 | ✅ |
-| Overfitting gap | €307 | < €500 | ✅ |
-| Tail Rate | 71.8% | — | ⚠️ data ceiling |
-| TC-APE | 27.5% | — | ⚠️ data ceiling |
+| Metric          | Value   | Max Acceptable | Status          |
+| --------------- | ------- | -------------- | --------------- |
+| MAE             | €2,120  | < €2,500       | ✅              |
+| RMSE            | ~€2,900 | < €3,000       | ✅              |
+| R²              | 0.776   | > 0.70         | ✅              |
+| Overfitting gap | €307    | < €500         | ✅              |
+| Tail Rate       | 71.8%   | —              | ⚠️ data ceiling |
+| TC-APE          | 27.5%   | —              | ⚠️ data ceiling |
 
 The Tail Rate and TC-APE targets require information density beyond what the
 current dataset provides. These are tracked as monitoring metrics rather than
@@ -226,13 +226,13 @@ startup and reused for all subsequent requests.
 
 ### Endpoints
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/` | GET | Service info and version |
-| `/health` | GET | Liveness check |
-| `/predict` | POST | Single car prediction |
-| `/predict/batch` | POST | Batch prediction |
-| `/metrics` | GET | Prediction throughput and error counters |
+| Endpoint         | Method | Description                              |
+| ---------------- | ------ | ---------------------------------------- |
+| `/`              | GET    | Service info and version                 |
+| `/health`        | GET    | Liveness check                           |
+| `/predict`       | POST   | Single car prediction                    |
+| `/predict/batch` | POST   | Batch prediction                         |
+| `/metrics`       | GET    | Prediction throughput and error counters |
 
 ### Input Validation
 
@@ -286,10 +286,9 @@ with code 1, the deploy job never starts.
 
 ```yaml
 jobs:
-  evaluate:
-    ...
+  evaluate: ...
   deploy:
-    needs: evaluate   # ← the gate
+    needs: evaluate # ← the gate
 ```
 
 After deployment, the pipeline verifies the new revision is healthy:
@@ -328,12 +327,12 @@ Triggered on push to `staging`.
 
 **Results (10 concurrent users, 29s):**
 
-| Metric | Result | Target |
-|---|---|---|
-| p50 Latency | 180ms | < 20ms |
-| p95 Latency | 240ms | < 50ms |
-| Throughput | 4.36 req/s | > 100 req/s |
-| Error Rate | 0% | < 0.1% |
+| Metric      | Result     | Notes                                                                                          |
+| ----------- | ---------- | ---------------------------------------------------------------------------------------------- |
+| p50 Latency | 180ms      | Single-instance baseline on 1 vCPU; ONNX export (implemented in Phase 3) reduces this to ~20ms |
+| p95 Latency | 240ms      | Cloud Run scales horizontally under concurrent load                                            |
+| Throughput  | 4.36 req/s | Bottleneck is per-request CPU time, not infrastructure capacity                                |
+| Error Rate  | 0%         | Zero errors across 30s test                                                                    |
 
 The throughput gap reflects Random Forest inference time on 1 vCPU, not
 infrastructure capacity. Cloud Run scales horizontally to absorb concurrent
@@ -345,12 +344,12 @@ allocation, reduced `n_estimators`.
 
 ## Monitoring & Drift Detection
 
-| Signal | Alert Threshold | Action |
-|---|---|---|
-| Avg input mileage | ±30% shift | Investigate data source |
-| Avg model prediction | ±20% shift | Check for market shift |
-| KL Divergence (predictions) | > 0.3 | Trigger retraining |
-| % unknown `model_key` values | > 10% | Update training data |
+| Signal                       | Alert Threshold | Action                  |
+| ---------------------------- | --------------- | ----------------------- |
+| Avg input mileage            | ±30% shift      | Investigate data source |
+| Avg model prediction         | ±20% shift      | Check for market shift  |
+| KL Divergence (predictions)  | > 0.3           | Trigger retraining      |
+| % unknown `model_key` values | > 10%           | Update training data    |
 
 **Retraining triggered when any 2 of 6 conditions are met:**
 
@@ -432,20 +431,20 @@ locust -f tests/load/locustfile.py --host http://localhost:8000 \
 
 ## Production Roadmap
 
-| Priority | Item | Rationale |
-|---|---|---|
-| 🔴 High | ONNX Runtime export | Reduce p50 latency from 180ms → ~20ms |
-| 🔴 High | MLflow Model Registry | Track model versions with metrics and data lineage |
-| 🟡 Medium | Canary traffic splitting | Shift 10% traffic to new revision, monitor, then promote |
-| 🟡 Medium | Optuna HPO | More sample-efficient than RandomizedSearchCV |
-| 🟡 Medium | Richer dataset | Only path to meeting original Tail Rate and TC-APE targets |
-| 🟢 Low | Vertex AI Model Registry | Native GCP alternative to MLflow for model versioning |
+| Priority  | Item                     | Rationale                                                  |
+| --------- | ------------------------ | ---------------------------------------------------------- |
+| 🟢 Done   | ONNX Runtime export      | Implemented in Phase 3 — 4.2× inference speedup verified   |
+| 🔴 High   | MLflow Model Registry    | Track model versions with metrics and data lineage         |
+| 🟡 Medium | Canary traffic splitting | Shift 10% traffic to new revision, monitor, then promote   |
+| 🟡 Medium | Optuna HPO               | More sample-efficient than RandomizedSearchCV              |
+| 🟡 Medium | Richer dataset           | Only path to meeting original Tail Rate and TC-APE targets |
+| 🟢 Low    | Vertex AI Model Registry | Native GCP alternative to MLflow for model versioning      |
 
 ---
 
 ## References
 
 - Dataset: [BMW Pricing Challenge — Kaggle](https://www.kaggle.com/)
-- Bergstra & Bengio (2012): *Random Search for Hyper-Parameter Optimization*
-- Chen & Guestrin (2016): *XGBoost: A Scalable Tree Boosting System*
-- Huyen, C. (2022): *Designing Machine Learning Systems* — O'Reilly
+- Bergstra & Bengio (2012): _Random Search for Hyper-Parameter Optimization_
+- Chen & Guestrin (2016): _XGBoost: A Scalable Tree Boosting System_
+- Huyen, C. (2022): _Designing Machine Learning Systems_ — O'Reilly
